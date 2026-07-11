@@ -1,5 +1,5 @@
-const CACHE = 'ryuka-landscape-v4-0-1';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
+const CACHE = 'ryuka-landscape-v4-0-2';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './vendor/three.min.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
   self.skipWaiting();
@@ -11,8 +11,10 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   event.respondWith(caches.match(event.request).then(hit => hit || fetch(event.request).then(response => {
-    const copy = response.clone();
-    caches.open(CACHE).then(cache => cache.put(event.request, copy));
+    if (response.ok && new URL(event.request.url).origin === self.location.origin) {
+      const copy = response.clone();
+      caches.open(CACHE).then(cache => cache.put(event.request, copy));
+    }
     return response;
-  }).catch(() => caches.match('./index.html'))));
+  }).catch(() => event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error())));
 });
