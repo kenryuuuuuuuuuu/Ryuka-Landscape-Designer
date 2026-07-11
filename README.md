@@ -1,4 +1,4 @@
-# Ryuka Landscape Designer v4.0
+# Ryuka Landscape Designer v4.0.1
 
 Ryuka石井敷地の固定座標を基準にした、畑・庭・民泊眺望の3D検討システムです。
 
