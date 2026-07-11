@@ -1,4 +1,4 @@
-const CACHE = 'ryuka-landscape-v4-0-2';
+const CACHE = 'ryuka-landscape-v4-0-1-mobile-controls';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './vendor/three.min.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Ryuka Landscape Designer v4.0 Standalone</title><style>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Ryuka Landscape Designer v4.0.1 Standalone</title><style>
 :root{
   --bg:#0b1115;--glass:rgba(17,25,29,.86);--glass2:rgba(28,39,43,.88);
   --line:rgba(255,255,255,.11);--ink:#f1eee6;--muted:#9dafad;
@@ -48,11 +48,13 @@ button,input{font:inherit} button{touch-action:manipulation}
 
 @media(max-width:820px){
  #topbar{left:10px;right:10px;top:10px;height:48px}.brand{min-width:0;padding:8px 11px}.brand small{font-size:7px}.brand strong{font-size:11px}.top-actions .seg{display:none}.icon-btn{width:34px;height:34px}
- #panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;height:46vh;max-height:440px;border-radius:18px;transform:translateY(calc(100% - 54px));transition:.28s cubic-bezier(.2,.8,.2,1)}#panel.open{transform:translateY(0)}
+ #panel{left:8px;right:8px;top:auto;bottom:calc(8px + env(safe-area-inset-bottom));width:auto;height:46vh;max-height:440px;border-radius:18px;transform:translateY(calc(100% - 54px));transition:.28s cubic-bezier(.2,.8,.2,1);z-index:40}#panel.open{transform:translateY(0)}
  #mobileHandle{display:flex;height:48px;align-items:center;justify-content:center;border-bottom:1px solid var(--line);font-size:11px;color:var(--muted);position:relative}#mobileHandle:before{content:"";position:absolute;top:8px;width:34px;height:4px;border-radius:3px;background:#526066}
- .panel-tabs{padding-top:6px}.panel-page{padding-bottom:70px}
+ .panel-tabs{padding-top:6px}.panel-page{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
  #timeline{left:10px;right:10px;bottom:69px;height:52px;grid-template-columns:118px 1fr;padding:8px 10px}.sun-read strong{font-size:11px}.sun-read span{font-size:8px}.sun-stats{display:none}.time-controls{grid-template-columns:34px 1fr 38px}.time-controls button{height:30px}
  #inspector{right:10px;top:68px;width:220px}.version{display:none}
+ body.walking:not(.panel-open) #panel{transform:translateY(100%)}
+ body.panel-open #timeline,body.panel-open #walkHelp,body.panel-open #compareBadge,body.panel-open #mobileWalkControls{display:none!important;pointer-events:none!important}
 }
 @media(max-width:430px){#inspector{display:none}.brand strong{font-size:10px}}
 
@@ -61,7 +63,9 @@ button,input{font:inherit} button{touch-action:manipulation}
 .choice{border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--ink);border-radius:10px;padding:9px 7px;font-size:10px;cursor:pointer}.choice.on{background:rgba(149,173,112,.22);border-color:rgba(149,173,112,.75);color:#e9f4da}
 #walkHelp{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);background:rgba(10,16,18,.78);border:1px solid var(--line);padding:8px 12px;border-radius:12px;font-size:10px;color:var(--muted);z-index:12;display:none;backdrop-filter:blur(12px)}
 #compareBadge{position:fixed;right:18px;bottom:90px;background:var(--glass);border:1px solid var(--line);border-radius:12px;padding:8px 11px;font-size:10px;color:var(--muted);z-index:11}.kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--ink);margin:0 2px}
-@media(max-width:820px){#walkHelp{bottom:132px;width:calc(100% - 24px);text-align:center}#compareBadge{right:10px;bottom:126px}}
+#mobileWalkControls{display:none}#joystick{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:calc(16px + env(safe-area-inset-bottom));width:112px;height:112px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(10,16,18,.58);backdrop-filter:blur(10px);touch-action:none;z-index:20}#joystickKnob{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px;border-radius:50%;background:rgba(217,119,63,.9);box-shadow:0 4px 16px rgba(0,0,0,.35);transform:translate(0,0);pointer-events:none}#mobileWalkExit{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom));z-index:20;border:1px solid var(--line);border-radius:12px;background:rgba(10,16,18,.82);color:var(--ink);padding:11px 14px;min-height:44px;touch-action:manipulation}
+body.walking #timeline,body.walking #compareBadge{display:none}
+@media(max-width:820px){#walkHelp{bottom:142px;width:calc(100% - 24px);text-align:center}#compareBadge{right:10px;bottom:126px}body.walking #mobileWalkControls{display:block}body.walking #walkHelp{display:none!important}}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#141e28">
@@ -73,7 +77,7 @@ button,input{font:inherit} button{touch-action:manipulation}
 <div id="scene"></div><div id="vignette"></div>
 
 <header id="topbar">
-  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.0</span></div>
+  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.0.1</span></div>
   <div class="top-actions">
     <div class="seg" id="modeSeg"><button data-mode="real" class="on">REAL</button><button data-mode="plan">PLAN</button></div>
     <button class="icon-btn" id="panelBtn" title="コントロール">☰</button>
@@ -102,7 +106,7 @@ button,input{font:inherit} button{touch-action:manipulation}
       <button class="view-btn" data-view="pergola">パーゴラ・着座<span>奥の間から建物を振り返る</span></button>
       <button class="view-btn" data-view="yard">作業ヤード<span>収納・井戸・畑への動線</span></button>
     </div></div>
-    <div class="section"><h3>WALK THROUGH</h3><div class="grid2"><button class="action" id="walkBtn">一人称で歩く</button><button class="action" id="walkExitBtn">歩行を終了</button></div><p class="section-note">PCはWASD、スマホは画面ドラッグで向き変更。畑内を目線高1.65mで確認します。</p></div>
+    <div class="section"><h3>WALK THROUGH</h3><div class="grid2"><button class="action" id="walkBtn">一人称で歩く</button><button class="action" id="walkExitBtn">歩行を終了</button></div><p class="section-note">PCはWASD、スマホは左下で移動・画面ドラッグで視点変更。畑内を目線高1.65mで確認します。</p></div>
     <div class="section"><h3>CAMERA</h3>
       <div class="range-row"><label>画角</label><input id="fov" type="range" min="30" max="75" value="48"><output id="fovOut">48°</output></div>
       <button class="action" id="resetView">標準視点に戻す</button>
@@ -166,8 +170,9 @@ button,input{font:inherit} button{touch-action:manipulation}
 </div>
 <div id="measureTip">地面を2点クリックしてください</div><div id="toast"></div>
 
-<div id="walkHelp"><span class="kbd">WASD</span> 移動　<span class="kbd">ドラッグ</span> 視点　<span class="kbd">Esc</span> 終了</div><div id="compareBadge">PLAN A｜夏・3年後・標準</div><script src="./vendor/three.min.js"></script><script>/* ============================================================
- Ryuka Landscape Designer v4.0
+<div id="walkHelp"><span class="kbd">WASD</span> 移動　<span class="kbd">ドラッグ</span> 視点　<span class="kbd">Esc</span> 終了</div><div id="compareBadge">PLAN A｜夏・3年後・標準</div>
+<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script>/* ============================================================
+ Ryuka Landscape Designer v4.0.1
  - Base coordinates/numeric values are preserved from v2.2.
  - x=east, z=south, y=up. Units: meters.
  ============================================================ */
@@ -370,10 +375,10 @@ function setMode(mode){STATE.mode=mode;document.querySelectorAll('[data-mode]').
 
 // ---------- build all ----------
 
-// ---------- v4.0 growth, seasons, walk-through and plan storage ----------
+// ---------- v4.0.1 growth, seasons, walk-through and plan storage ----------
 const PLAN_DEFAULTS={A:{season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true},B:{season:'autumn',growthYear:5,density:'lush',cropPattern:'B',showFlowers:true,showFruit:true}};
 let plans=JSON.parse(localStorage.getItem('ryuka-v4-plans')||'null')||JSON.parse(JSON.stringify(PLAN_DEFAULTS));
-const walk={pos:new THREE.Vector3(-4,1.65,-4.8),yaw:Math.PI,pitch:0,keys:{},drag:null};
+const walk={pos:new THREE.Vector3(-4,1.65,-4.8),yaw:Math.PI,pitch:0,keys:{},drag:null,joystick:{x:0,y:0,pointerId:null}};
 const SEASON_COLORS={spring:[0x78a95c,0x94bb68],summer:[0x4f873f,0x6b9d4f],autumn:[0x9a7a3f,0xb46d35],winter:[0x6e7659,0x78806c]};
 const CROP_NAMES={A:['果菜類','葉物・根菜','つる物','緑肥・休耕'],B:['豆類','果菜類','葉物・香味','根菜類']};
 function growthScale(){return .46+Math.min(10,STATE.growthYear)*.075}
@@ -397,15 +402,21 @@ function applyGrowthUI(){
 function rebuildGrowth(){buildTrees();buildRotations();buildGuestBeds();buildHerbs();buildLawn();applyGrowthUI()}
 function readPlan(k){STATE.activePlan=k;Object.assign(STATE,plans[k]);rebuildGrowth()}
 function savePlan(){plans[STATE.activePlan]={season:STATE.season,growthYear:STATE.growthYear,density:STATE.density,cropPattern:STATE.cropPattern,showFlowers:STATE.showFlowers,showFruit:STATE.showFruit};localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));toast(`プラン${STATE.activePlan}を保存しました`)}
-function startWalk(){setPerspective();cam.mode='walk';walk.pos.set(-4,1.65,-4.8);walk.yaw=Math.PI;walk.pitch=0;$('walkHelp').style.display='block';$('walkBtn').classList.add('on');toast('一人称歩行を開始')}
-function stopWalk(){cam.mode='orbit';$('walkHelp').style.display='none';$('walkBtn').classList.remove('on');flyTo('birdNE')}
-function updateWalk(dt){if(cam.mode!=='walk')return;const speed=dt*.006,front=new THREE.Vector3(Math.sin(walk.yaw),0,Math.cos(walk.yaw)),right=new THREE.Vector3(front.z,0,-front.x);if(walk.keys.KeyW)walk.pos.addScaledVector(front,speed);if(walk.keys.KeyS)walk.pos.addScaledVector(front,-speed);if(walk.keys.KeyA)walk.pos.addScaledVector(right,-speed);if(walk.keys.KeyD)walk.pos.addScaledVector(right,speed);walk.pos.x=clamp(walk.pos.x,-24,25);walk.pos.z=clamp(walk.pos.z,-18,21);walk.pos.y=1.65}
+function resetJoystickInput(){walk.joystick.x=walk.joystick.y=0;walk.joystick.pointerId=null;$('joystickKnob').style.transform='translate(0,0)'}
+function resetWalkInput(){walk.keys={};walk.drag=null;resetJoystickInput()}
+function setPanelOpen(open){const isOpen=!!open;$('panel').classList.toggle('open',isOpen);document.body.classList.toggle('panel-open',isOpen);if(isOpen)resetWalkInput()}
+function startWalk(){setPanelOpen(false);resetWalkInput();setPerspective();cam.mode='walk';walk.pos.set(-4,1.65,-4.8);walk.yaw=Math.PI;walk.pitch=0;document.body.classList.add('walking');$('walkHelp').style.display='block';$('walkBtn').classList.add('on');toast('一人称歩行を開始')}
+function stopWalk(){resetWalkInput();cam.mode='orbit';document.body.classList.remove('walking');$('walkHelp').style.display='none';$('walkBtn').classList.remove('on');flyTo('birdNE')}
+function updateWalk(dt){if(cam.mode!=='walk')return;const speed=dt*.006,front=new THREE.Vector3(Math.sin(walk.yaw),0,Math.cos(walk.yaw)),right=new THREE.Vector3(front.z,0,-front.x),forward=(walk.keys.KeyW?1:0)-(walk.keys.KeyS?1:0)-walk.joystick.y,side=(walk.keys.KeyD?1:0)-(walk.keys.KeyA?1:0)+walk.joystick.x,len=Math.hypot(forward,side)||1;walk.pos.addScaledVector(front,speed*forward/Math.max(1,len));walk.pos.addScaledVector(right,speed*side/Math.max(1,len));walk.pos.x=clamp(walk.pos.x,-24,25);walk.pos.z=clamp(walk.pos.z,-18,21);walk.pos.y=1.65}
 document.querySelectorAll('[data-season]').forEach(b=>b.onclick=()=>{STATE.season=b.dataset.season;rebuildGrowth()});document.querySelectorAll('[data-density]').forEach(b=>b.onclick=()=>{STATE.density=b.dataset.density;rebuildGrowth()});document.querySelectorAll('[data-crop]').forEach(b=>b.onclick=()=>{STATE.cropPattern=b.dataset.crop;rebuildGrowth()});
-$('growthYear').oninput=e=>{STATE.growthYear=+e.target.value;rebuildGrowth()};$('flowerBtn').onclick=()=>{STATE.showFlowers=!STATE.showFlowers;rebuildGrowth()};$('fruitBtn').onclick=()=>{STATE.showFruit=!STATE.showFruit;rebuildGrowth()};$('walkBtn').onclick=startWalk;$('walkExitBtn').onclick=stopWalk;
+$('growthYear').oninput=e=>{STATE.growthYear=+e.target.value;rebuildGrowth()};$('flowerBtn').onclick=()=>{STATE.showFlowers=!STATE.showFlowers;rebuildGrowth()};$('fruitBtn').onclick=()=>{STATE.showFruit=!STATE.showFruit;rebuildGrowth()};$('walkBtn').onclick=startWalk;$('walkExitBtn').onclick=$('mobileWalkExit').onclick=stopWalk;
 $('planABtn').onclick=()=>readPlan('A');$('planBBtn').onclick=()=>readPlan('B');$('savePlanBtn').onclick=savePlan;$('resetPlanBtn').onclick=()=>{plans=JSON.parse(JSON.stringify(PLAN_DEFAULTS));localStorage.removeItem('ryuka-v4-plans');readPlan(STATE.activePlan);toast('プランを初期化しました')};
-$('exportBtn').onclick=()=>{savePlan();const blob=new Blob([JSON.stringify({version:'4.0',plans},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ryuka-landscape-plans.json';a.click();URL.revokeObjectURL(a.href)};$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const q=JSON.parse(r.result);plans=q.plans||q;localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));readPlan('A');toast('設定を読み込みました')}catch{toast('設定ファイルを読み込めません')}};r.readAsText(f)};
+$('exportBtn').onclick=()=>{savePlan();const blob=new Blob([JSON.stringify({version:'4.0.1',plans},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ryuka-landscape-plans.json';a.click();URL.revokeObjectURL(a.href)};$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const q=JSON.parse(r.result);plans=q.plans||q;localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));readPlan('A');toast('設定を読み込みました')}catch{toast('設定ファイルを読み込めません')}};r.readAsText(f)};
 addEventListener('keydown',e=>{walk.keys[e.code]=true;if(e.code==='Escape'&&cam.mode==='walk')stopWalk()});addEventListener('keyup',e=>walk.keys[e.code]=false);
-renderer.domElement.addEventListener('pointerdown',e=>{if(cam.mode==='walk')walk.drag={x:e.clientX,y:e.clientY}});addEventListener('pointermove',e=>{if(cam.mode==='walk'&&walk.drag){walk.yaw-=(e.clientX-walk.drag.x)*.005;walk.pitch=clamp(walk.pitch-(e.clientY-walk.drag.y)*.004,-.75,.75);walk.drag={x:e.clientX,y:e.clientY}}});addEventListener('pointerup',()=>walk.drag=null);
+renderer.domElement.addEventListener('pointerdown',e=>{if(cam.mode==='walk'&&!document.body.classList.contains('panel-open'))walk.drag={x:e.clientX,y:e.clientY}});addEventListener('pointermove',e=>{if(cam.mode==='walk'&&walk.drag){walk.yaw-=(e.clientX-walk.drag.x)*.005;walk.pitch=clamp(walk.pitch-(e.clientY-walk.drag.y)*.004,-.75,.75);walk.drag={x:e.clientX,y:e.clientY}}});addEventListener('pointerup',()=>walk.drag=null);addEventListener('pointercancel',()=>walk.drag=null);
+const joystick=$('joystick'),joystickKnob=$('joystickKnob');
+function updateJoystick(e){const r=joystick.getBoundingClientRect(),radius=r.width/2,dx=e.clientX-(r.left+radius),dy=e.clientY-(r.top+radius),distance=Math.hypot(dx,dy),scale=distance>radius?radius/distance:1,nx=dx*scale/radius,ny=dy*scale/radius,dead=.12;walk.joystick.x=Math.abs(nx)<dead?0:nx;walk.joystick.y=Math.abs(ny)<dead?0:ny;joystickKnob.style.transform=`translate(${nx*radius*.55}px,${ny*radius*.55}px)`}
+joystick.addEventListener('pointerdown',e=>{if(cam.mode!=='walk'||document.body.classList.contains('panel-open'))return;walk.joystick.pointerId=e.pointerId;joystick.setPointerCapture(e.pointerId);updateJoystick(e);e.preventDefault()});joystick.addEventListener('pointermove',e=>{if(e.pointerId===walk.joystick.pointerId){updateJoystick(e);e.preventDefault()}});function releaseJoystick(e){if(e.pointerId===walk.joystick.pointerId)resetJoystickInput()}joystick.addEventListener('pointerup',releaseJoystick);joystick.addEventListener('pointercancel',releaseJoystick);
 applyGrowthUI();
 
 buildSite();buildBuilding();buildPaths();buildFacilities();buildGuestBeds();buildHerbs();buildRotations();buildTrees();buildLawn();buildLabels();buildGrid();buildSunPath();updateSun();
@@ -424,7 +435,7 @@ $('exposure').oninput=e=>{$('exposureOut').textContent=(e.target.value/100).toFi
 $('contextBtn').onclick=()=>{STATE.context=!STATE.context;$('contextBtn').classList.toggle('on',STATE.context);contextGroup.visible=STATE.context&&STATE.mode==='real'};
 $('northOff').oninput=e=>{STATE.northOff=+e.target.value;$('northOut').textContent=STATE.northOff+'°';compass.rotation.y=-STATE.northOff*Math.PI/180;updateSun();buildSunPath()};
 $('splitPos').oninput=e=>{const f=+e.target.value/1000;splitT=zMin+1+(zMax-zMin-2)*f;$('splitOut').textContent=`${splitT-splitDefault>=0?'+':''}${(splitT-splitDefault).toFixed(1)}m`;buildSite()};
-$('panelBtn').onclick=()=>{$('panel').classList.toggle('open')};$('mobileHandle').onclick=()=>$('panel').classList.toggle('open');
+$('panelBtn').onclick=$('mobileHandle').onclick=()=>setPanelOpen(!$('panel').classList.contains('open'));
 $('fullBtn').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.()};
 $('shotBtn').onclick=()=>{renderer.render(scene,camera);const a=document.createElement('a');a.download=`ryuka-landscape-${doyToMD(STATE.doy).replace('/','-')}-${fmtTime(STATE.tod).replace(':','')}.png`;a.href=renderer.domElement.toDataURL('image/png');a.click();toast('現在の視点をPNGで保存しました')};
 
