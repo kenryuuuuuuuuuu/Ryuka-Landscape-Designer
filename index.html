@@ -77,7 +77,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 <div id="scene"></div><div id="vignette"></div>
 
 <header id="topbar">
-  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.0.1</span></div>
+  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.0.1 · 2026.07.12</span></div>
   <div class="top-actions">
     <div class="seg" id="modeSeg"><button data-mode="real" class="on">REAL</button><button data-mode="plan">PLAN</button></div>
     <button class="icon-btn" id="panelBtn" title="コントロール">☰</button>
@@ -407,7 +407,7 @@ function resetWalkInput(){walk.keys={};walk.drag=null;resetJoystickInput()}
 function setPanelOpen(open){const isOpen=!!open;$('panel').classList.toggle('open',isOpen);document.body.classList.toggle('panel-open',isOpen);if(isOpen)resetWalkInput()}
 function startWalk(){setPanelOpen(false);resetWalkInput();setPerspective();cam.mode='walk';walk.pos.set(-4,1.65,-4.8);walk.yaw=Math.PI;walk.pitch=0;document.body.classList.add('walking');$('walkHelp').style.display='block';$('walkBtn').classList.add('on');toast('一人称歩行を開始')}
 function stopWalk(){resetWalkInput();cam.mode='orbit';document.body.classList.remove('walking');$('walkHelp').style.display='none';$('walkBtn').classList.remove('on');flyTo('birdNE')}
-function updateWalk(dt){if(cam.mode!=='walk')return;const speed=dt*.006,front=new THREE.Vector3(Math.sin(walk.yaw),0,Math.cos(walk.yaw)),right=new THREE.Vector3(front.z,0,-front.x),forward=(walk.keys.KeyW?1:0)-(walk.keys.KeyS?1:0)-walk.joystick.y,side=(walk.keys.KeyD?1:0)-(walk.keys.KeyA?1:0)+walk.joystick.x,len=Math.hypot(forward,side)||1;walk.pos.addScaledVector(front,speed*forward/Math.max(1,len));walk.pos.addScaledVector(right,speed*side/Math.max(1,len));walk.pos.x=clamp(walk.pos.x,-24,25);walk.pos.z=clamp(walk.pos.z,-18,21);walk.pos.y=1.65}
+function updateWalk(dt){if(cam.mode!=='walk')return;const speed=dt*.006,front=new THREE.Vector3(Math.sin(walk.yaw),0,Math.cos(walk.yaw)),right=new THREE.Vector3(front.z,0,-front.x),forward=(walk.keys.KeyW?1:0)-(walk.keys.KeyS?1:0)-walk.joystick.y,side=(walk.keys.KeyD?1:0)-(walk.keys.KeyA?1:0)-walk.joystick.x,len=Math.hypot(forward,side)||1;walk.pos.addScaledVector(front,speed*forward/Math.max(1,len));walk.pos.addScaledVector(right,speed*side/Math.max(1,len));walk.pos.x=clamp(walk.pos.x,-24,25);walk.pos.z=clamp(walk.pos.z,-18,21);walk.pos.y=1.65}
 document.querySelectorAll('[data-season]').forEach(b=>b.onclick=()=>{STATE.season=b.dataset.season;rebuildGrowth()});document.querySelectorAll('[data-density]').forEach(b=>b.onclick=()=>{STATE.density=b.dataset.density;rebuildGrowth()});document.querySelectorAll('[data-crop]').forEach(b=>b.onclick=()=>{STATE.cropPattern=b.dataset.crop;rebuildGrowth()});
 $('growthYear').oninput=e=>{STATE.growthYear=+e.target.value;rebuildGrowth()};$('flowerBtn').onclick=()=>{STATE.showFlowers=!STATE.showFlowers;rebuildGrowth()};$('fruitBtn').onclick=()=>{STATE.showFruit=!STATE.showFruit;rebuildGrowth()};$('walkBtn').onclick=startWalk;$('walkExitBtn').onclick=$('mobileWalkExit').onclick=stopWalk;
 $('planABtn').onclick=()=>readPlan('A');$('planBBtn').onclick=()=>readPlan('B');$('savePlanBtn').onclick=savePlan;$('resetPlanBtn').onclick=()=>{plans=JSON.parse(JSON.stringify(PLAN_DEFAULTS));localStorage.removeItem('ryuka-v4-plans');readPlan(STATE.activePlan);toast('プランを初期化しました')};
