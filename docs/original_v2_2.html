@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ryuka 石井敷地 3Dシミュレーター v2.2（畑コーディネート）</title>
+<style>
+  :root{
+    --panel:#141e28; --panel2:#1c2836; --ink:#e8e4da; --sub:#93a1ad;
+    --accent:#e07a30; --line:#33414f; --ok:#6fb98f;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;background:#0d141b;color:var(--ink)}
+  #scene{position:fixed;inset:0}
+  canvas{display:block}
+
+  /* 上部ヘッダー */
+  #hud{position:fixed;top:0;left:0;right:0;padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5}
+  .hud-title{font-size:12px;letter-spacing:.08em;color:var(--sub)}
+  .hud-title b{display:block;font-size:15px;color:var(--ink);letter-spacing:.02em;font-weight:600}
+  #sunread{text-align:right;font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums;line-height:1.55;background:rgba(13,20,27,.55);padding:6px 9px;border-radius:8px;backdrop-filter:blur(4px)}
+  #sunread b{color:var(--ink);font-weight:600}
+
+  /* 計測結果表示 */
+  #measureTip{position:fixed;top:74px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:12px;padding:6px 14px;border-radius:20px;display:none;z-index:6;font-variant-numeric:tabular-nums}
+
+  /* 下部パネル */
+  #panel{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);z-index:10;transition:transform .25s ease;max-height:62vh;display:flex;flex-direction:column}
+  #panel.closed{transform:translateY(calc(100% - 46px))}
+  #panelHead{height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;cursor:pointer;flex-shrink:0}
+  #panelHead .grab{width:36px;height:4px;border-radius:2px;background:var(--line);position:absolute;left:50%;top:8px;transform:translateX(-50%)}
+  #panelHead span{font-size:13px;color:var(--sub)}
+  #panelHead .time-mini{font-variant-numeric:tabular-nums;color:var(--ink);font-size:13px}
+  #panelBody{overflow-y:auto;padding:2px 16px 22px;-webkit-overflow-scrolling:touch}
+
+  .sec{margin-top:14px}
+  .sec h3{font-size:11px;letter-spacing:.14em;color:var(--sub);font-weight:600;margin-bottom:8px}
+  .row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .row label{font-size:12px;color:var(--sub);width:64px;flex-shrink:0}
+  .row output{font-size:12px;font-variant-numeric:tabular-nums;width:86px;text-align:right;flex-shrink:0}
+  input[type=range]{flex:1;appearance:none;-webkit-appearance:none;height:26px;background:transparent}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);margin-top:-8.5px;border:2px solid var(--panel)}
+  .btns{display:flex;flex-wrap:wrap;gap:8px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:12px;cursor:pointer}
+  button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .toggles{display:flex;flex-wrap:wrap;gap:8px}
+  .info{font-size:11px;color:var(--sub);line-height:1.7;margin-top:6px}
+  .info b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .note{font-size:10.5px;color:#6d7b88;margin-top:8px;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="scene"></div>
+
+<div id="hud">
+  <div class="hud-title">RYUKA / 日田市石井<b>敷地3Dシミュレーター v2.2</b></div>
+  <div id="sunread"></div>
+</div>
+<div id="measureTip">地面を2点タップして距離を計測</div>
+
+<div id="panel" class="closed">
+  <div id="panelHead">
+    <div class="grab"></div>
+    <span>コントロール</span>
+    <span class="time-mini" id="miniTime"></span>
+  </div>
+  <div id="panelBody">
+
+    <div class="sec">
+      <h3>日照シミュレーション</h3>
+      <div class="row"><label>日付</label><input type="range" id="doy" min="1" max="365" value="188"><output id="doyOut"></output></div>
+      <div class="row"><label>時刻</label><input type="range" id="tod" min="300" max="1170" step="5" value="720"><output id="todOut"></output></div>
+      <div class="btns">
+        <button id="playBtn">▶ 1日を再生</button>
+        <button id="sunPathBtn" class="on">太陽軌道</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>視点</h3>
+      <div class="btns">
+        <button data-view="top">真上</button>
+        <button data-view="south">南から</button>
+        <button data-view="north">北から</button>
+        <button data-view="bird">鳥瞰</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>表示・計測</h3>
+      <div class="toggles">
+        <button id="gridBtn">5mグリッド</button>
+        <button id="labelBtn" class="on">寸法ラベル</button>
+        <button id="splitBtn" class="on">分筆線</button>
+        <button id="measureBtn">距離計測</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>畑コーディネート（v2.2）</h3>
+      <div class="toggles">
+        <button id="cFac" class="on">施設</button>
+        <button id="cPath" class="on">動線</button>
+        <button id="cBed" class="on">体験ベッド</button>
+        <button id="cHerb" class="on">ハーブ帯</button>
+        <button id="cRot" class="on">輪作区画</button>
+        <button id="cTree" class="on">果樹</button>
+        <button id="cLawn" class="on">広場・テラス</button>
+        <button id="cZone" class="on">ゾーン名</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>調整</h3>
+      <div class="row"><label>北の補正</label><input type="range" id="northOff" min="-180" max="180" value="0"><output id="northOut">0°</output></div>
+      <div class="row"><label>分筆線</label><input type="range" id="splitPos" min="0" max="1000" value="500"><output id="splitOut"></output></div>
+      <div class="info" id="areaInfo"></div>
+      <div class="note">
+        形状は「たたき台_Ver5 配置図」から復元（辺長誤差±2mm・面積988.87㎡）。図面の上＝北と仮定しています。実際の方位とずれがある場合は「北の補正」で回転してください。分筆線の位置は面積比からの推定です（実際の筆界は地積測量図で要確認）。
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   Ryuka 石井敷地 3Dシミュレーター v2.2 (2026-07-08) 腰窓・パーゴラテラス・ハーブの帯を反映
+   座標系: x=東, z=南, y=上（図面の上=北と仮定）単位: m
+   ============================================================ */
+
+// ---- 敷地ジオメトリ（配置図から最小二乗補正済み） ----
+const SITE = [                 // A→B→C→D→E
+  {n:'A', x:-19.906, z:  5.284},  // 西
+  {n:'B', x:-13.730, z:-14.345},  // 北西
+  {n:'C', x: 19.636, z:-14.127},  // 北東
+  {n:'D', x: 21.559, z:  5.755},  // 東
+  {n:'E', x: -7.559, z: 17.433},  // 南
+];
+const EDGE_LEN = [20.579, 33.366, 19.974, 31.374, 17.322]; // A-B,B-C,C-D,D-E,E-A
+const BLD = {cx:2.209, cz:-9.449, w:19.11, d:7.28, wallH:6.0, ridgeH:7.6};
+const LAT = 33.32, LON = 130.94;      // 日田市
+const TAKUCHI_AREA = 319;             // 宅地(北側) ㎡ 登記値
+
+// ---- three.js 基本 ----
+const container = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.5, 800);
+
+// カメラ制御（自作オービット）
+const cam = {target:new THREE.Vector3(0,0,0), r:70, a:Math.PI, p:0.9};
+function applyCam(){
+  cam.p = Math.max(0.04, Math.min(1.52, cam.p));
+  cam.r = Math.max(12, Math.min(220, cam.r));
+  camera.position.set(
+    cam.target.x + cam.r*Math.sin(cam.p)*Math.sin(cam.a),
+    cam.target.y + cam.r*Math.cos(cam.p),
+    cam.target.z + cam.r*Math.sin(cam.p)*Math.cos(cam.a)
+  );
+  camera.lookAt(cam.target);
+}
+
+// ---- 光源 ----
+scene.add(new THREE.HemisphereLight(0xbcd4e8, 0x5a4a38, 0.55));
+const amb = new THREE.AmbientLight(0xffffff, 0.15); scene.add(amb);
+const sun = new THREE.DirectionalLight(0xfff3e0, 1.1);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+const sc = sun.shadow.camera;
+sc.left=-45; sc.right=45; sc.top=45; sc.bottom=-45; sc.near=1; sc.far=300;
+scene.add(sun); scene.add(sun.target);
+const sunBall = new THREE.Mesh(new THREE.SphereGeometry(1.6,16,16),
+  new THREE.MeshBasicMaterial({color:0xffc45e}));
+scene.add(sunBall);
+
+// ---- 周辺地面 ----
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(260,48),
+  new THREE.MeshLambertMaterial({color:0x4b5a44})
+);
+ground.rotation.x = -Math.PI/2; ground.position.y = -0.06;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ---- 敷地面（分筆線で2分割して描画） ----
+function clipPoly(poly, t, keepNorth){ // z<=t を残す(north) / z>=t (south)
+  const out=[];
+  const inside = p => keepNorth ? p.z <= t : p.z >= t;
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length];
+    const ia=inside(a), ib=inside(b);
+    if(ia) out.push(a);
+    if(ia!==ib){
+      const s=(t-a.z)/(b.z-a.z);
+      out.push({x:a.x+(b.x-a.x)*s, z:t});
+    }
+  }
+  return out;
+}
+function polyArea(p){
+  let s=0;
+  for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length];s+=a.x*b.z-b.x*a.z;}
+  return Math.abs(s)/2;
+}
+function shapeFrom(poly){
+  const sh=new THREE.Shape();
+  poly.forEach((p,i)=> i?sh.lineTo(p.x,-p.z):sh.moveTo(p.x,-p.z));
+  return sh;
+}
+const matTakuchi = new THREE.MeshLambertMaterial({color:0xb3ab99});   // 宅地: 砕石
+const matHatake  = new THREE.MeshLambertMaterial({color:0x8a6a45});   // 畑: 裸土
+let takuchiMesh=null, hatakeMesh=null, splitLineObj=null;
+
+const zMin = Math.min(...SITE.map(p=>p.z)), zMax = Math.max(...SITE.map(p=>p.z));
+function northArea(t){ return polyArea(clipPoly(SITE,t,true)); }
+// 宅地319㎡になる分筆線位置を二分法で推定
+let splitT = (()=>{ let lo=zMin, hi=zMax;
+  for(let i=0;i<60;i++){const m=(lo+hi)/2; (northArea(m)<TAKUCHI_AREA)?lo=m:hi=m;}
+  return (lo+hi)/2; })();
+const splitDefault = splitT;
+
+function buildSiteMeshes(){
+  [takuchiMesh,hatakeMesh,splitLineObj].forEach(o=>{if(o){scene.remove(o);o.geometry.dispose();}});
+  const north = clipPoly(SITE, splitT, true);
+  const south = clipPoly(SITE, splitT, false);
+  takuchiMesh = new THREE.Mesh(new THREE.ShapeGeometry(shapeFrom(north)), matTakuchi);
+  hatakeMesh  = new THREE.Mesh(new THREE.ShapeGeometry(shapeFrom(south)), matHatake);
+  [takuchiMesh,hatakeMesh].forEach(m=>{
+    m.rotation.x=-Math.PI/2; m.receiveShadow=true; scene.add(m);
+  });
+  // 分筆線（破線）
+  const xs = north.filter(p=>Math.abs(p.z-splitT)<1e-6).map(p=>p.x);
+  const g = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(Math.min(...xs),0.06,splitT),
+    new THREE.Vector3(Math.max(...xs),0.06,splitT)
+  ]);
+  splitLineObj = new THREE.Line(g,
+    new THREE.LineDashedMaterial({color:0xe8e4da,dashSize:0.9,gapSize:0.6}));
+  splitLineObj.computeLineDistances();
+  splitLineObj.visible = ui.split;
+  scene.add(splitLineObj);
+  // 面積表示
+  document.getElementById('areaInfo').innerHTML =
+    `北側（宅地想定）: <b>${northArea(splitT).toFixed(1)}㎡</b> ／ 南側（畑想定）: <b>${(polyArea(SITE)-northArea(splitT)).toFixed(1)}㎡</b>`;
+}
+
+// ---- 境界線・杭 ----
+(function(){
+  const pts = SITE.map(p=>new THREE.Vector3(p.x,0.09,p.z));
+  pts.push(pts[0].clone());
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color:0xf2ede2})));
+  SITE.forEach(p=>{
+    const kui=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.7,10),
+      new THREE.MeshLambertMaterial({color:0xe07a30}));
+    kui.position.set(p.x,0.35,p.z); kui.castShadow=true; scene.add(kui);
+  });
+})();
+
+// ---- 建物（2階建・切妻） ----
+(function(){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(BLD.w,BLD.wallH,BLD.d),
+    new THREE.MeshLambertMaterial({color:0xe9e2d2}));
+  body.position.y=BLD.wallH/2; body.castShadow=true; body.receiveShadow=true;
+  g.add(body);
+  // 切妻屋根（東西棟）
+  const tri=new THREE.Shape();
+  tri.moveTo(-BLD.d/2,BLD.wallH); tri.lineTo(BLD.d/2,BLD.wallH);
+  tri.lineTo(0,BLD.ridgeH); tri.closePath();
+  const roof=new THREE.Mesh(
+    new THREE.ExtrudeGeometry(tri,{depth:BLD.w,bevelEnabled:false}),
+    new THREE.MeshLambertMaterial({color:0x46525e}));
+  roof.rotation.y=Math.PI/2; roof.position.x=-BLD.w/2;
+  roof.castShadow=true;
+  g.add(roof);
+  g.position.set(BLD.cx,0,BLD.cz);
+  scene.add(g);
+})();
+
+// ---- テキストスプライト ----
+function textSprite(text,{size=64,color='#e8e4da',bg=null,scale=3}={}){
+  const c=document.createElement('canvas');
+  const ctx=c.getContext('2d');
+  ctx.font=`600 ${size}px -apple-system,"Hiragino Sans",sans-serif`;
+  const w=Math.ceil(ctx.measureText(text).width)+28;
+  c.width=w; c.height=size+26;
+  const ctx2=c.getContext('2d');
+  if(bg){ctx2.fillStyle=bg;ctx2.fillRect(0,0,c.width,c.height);}
+  ctx2.font=`600 ${size}px -apple-system,"Hiragino Sans",sans-serif`;
+  ctx2.fillStyle=color; ctx2.textBaseline='middle';
+  ctx2.fillText(text,14,c.height/2);
+  const tex=new THREE.CanvasTexture(c);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false}));
+  sp.scale.set(scale*c.width/c.height, scale, 1);
+  return sp;
+}
+
+// ---- 寸法ラベル・頂点ラベル ----
+const labelGroup=new THREE.Group(); scene.add(labelGroup);
+(function(){
+  const cx=SITE.reduce((s,p)=>s+p.x,0)/5, cz=SITE.reduce((s,p)=>s+p.z,0)/5;
+  SITE.forEach((p,i)=>{
+    const q=SITE[(i+1)%5];
+    const mx=(p.x+q.x)/2, mz=(p.z+q.z)/2;
+    const dx=mx-cx, dz=mz-cz, L=Math.hypot(dx,dz);
+    const sp=textSprite(`${EDGE_LEN[i].toFixed(2)}m`,{scale:2.6,bg:'rgba(13,20,27,.72)'});
+    sp.position.set(mx+dx/L*3.2, 1.4, mz+dz/L*3.2);
+    labelGroup.add(sp);
+    const vp=textSprite(p.n,{scale:2.2,color:'#ffb066'});
+    const vdx=p.x-cx, vdz=p.z-cz, VL=Math.hypot(vdx,vdz);
+    vp.position.set(p.x+vdx/VL*2.4, 1.2, p.z+vdz/VL*2.4);
+    labelGroup.add(vp);
+  });
+})();
+
+// ---- 方位（コンパス＋北矢印） ----
+const compass=new THREE.Group(); scene.add(compass);
+(function(){
+  const R=34;
+  [['北',0,'#ff8a3d',3.6],['東',90,'#93a1ad',3],['南',180,'#93a1ad',3],['西',270,'#93a1ad',3]]
+  .forEach(([t,deg,col,sc])=>{
+    const sp=textSprite(t,{color:col,scale:sc});
+    const a=deg*Math.PI/180;
+    sp.position.set(R*Math.sin(a),1.6,-R*Math.cos(a));
+    compass.add(sp);
+  });
+  // 北矢印
+  const ar=new THREE.Mesh(new THREE.ConeGeometry(1.1,3.4,4),
+    new THREE.MeshBasicMaterial({color:0xff8a3d}));
+  ar.position.set(0,0.3,-29.5); ar.rotation.x=-Math.PI/2;
+  compass.add(ar);
+})();
+
+// ---- 5mグリッド＋ゾーンラベル ----
+const gridGroup=new THREE.Group(); gridGroup.visible=false; scene.add(gridGroup);
+(function(){
+  const xMin=Math.min(...SITE.map(p=>p.x)), xMax=Math.max(...SITE.map(p=>p.x));
+  const inPoly=(x,z)=>{
+    let c=false;
+    for(let i=0,j=4;i<5;i++,j=i-0? i-1:4){
+      const a=SITE[i], b=SITE[j];
+      if(((a.z>z)!==(b.z>z)) && (x < (b.x-a.x)*(z-a.z)/(b.z-a.z)+a.x)) c=!c;
+    }
+    return c;
+  };
+  const gx0=Math.floor(xMin/5)*5, gz0=Math.floor(zMin/5)*5;
+  const lineMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.22});
+  const pts=[];
+  for(let x=gx0;x<=xMax+5;x+=5){pts.push(new THREE.Vector3(x,0.05,zMin-1),new THREE.Vector3(x,0.05,zMax+1));}
+  for(let z=gz0;z<=zMax+5;z+=5){pts.push(new THREE.Vector3(xMin-1,0.05,z),new THREE.Vector3(xMax+1,0.05,z));}
+  gridGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),lineMat));
+  let cols=0;
+  for(let x=gx0,ci=0;x<=xMax;x+=5,ci++){cols=ci+1;}
+  for(let z=gz0,ri=0;z<=zMax;z+=5,ri++){
+    for(let x=gx0,ci=0;x<=xMax;x+=5,ci++){
+      const cxm=x+2.5,czm=z+2.5;
+      if(!inPoly(cxm,czm)) continue;
+      const name=String.fromCharCode(65+ci)+(ri+1);
+      const sp=textSprite(name,{color:'rgba(255,255,255,.85)',scale:1.7});
+      sp.position.set(cxm,0.6,czm);
+      gridGroup.add(sp);
+    }
+  }
+})();
+
+// ---- 太陽計算 ----
+function sunAltAz(doy,minutes){
+  const rad=Math.PI/180;
+  const decl=23.45*rad*Math.sin(2*Math.PI*(284+doy)/365);
+  const B=2*Math.PI*(doy-81)/365;
+  const eot=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B);
+  const solar=minutes+4*(LON-135)+eot;
+  const H=(solar/60-12)*15*rad;
+  const lat=LAT*rad;
+  const sinAlt=Math.sin(lat)*Math.sin(decl)+Math.cos(lat)*Math.cos(decl)*Math.cos(H);
+  const alt=Math.asin(sinAlt);
+  let cosAz=(Math.sin(decl)-sinAlt*Math.sin(lat))/(Math.cos(alt)*Math.cos(lat));
+  cosAz=Math.min(1,Math.max(-1,cosAz));
+  let az=Math.acos(cosAz);
+  if(H>0) az=2*Math.PI-az;
+  return {alt,az};
+}
+function sunTimes(doy){
+  let rise=null,set=null,prev=sunAltAz(doy,0).alt;
+  for(let m=5;m<=1439;m+=5){
+    const a=sunAltAz(doy,m).alt;
+    if(prev<=0&&a>0) rise=m;
+    if(prev>0&&a<=0) set=m;
+    prev=a;
+  }
+  return {rise,set};
+}
+const DAYS=[31,28,31,30,31,30,31,31,30,31,30,31];
+function doyToMD(doy){
+  let m=0,d=doy;
+  while(d>DAYS[m]){d-=DAYS[m];m++;}
+  return `${m+1}/${d}`;
+}
+const fmtT=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+
+// ---- 太陽軌道アーク ----
+let sunPathObj=null;
+function buildSunPath(){
+  if(sunPathObj){scene.remove(sunPathObj);sunPathObj.geometry.dispose();sunPathObj=null;}
+  if(!ui.sunPath) return;
+  const R=52, off=ui.northOff*Math.PI/180, pts=[];
+  for(let m=240;m<=1220;m+=10){
+    const {alt,az}=sunAltAz(ui.doy,m);
+    if(alt<=0) continue;
+    const phi=az+off;
+    pts.push(new THREE.Vector3(R*Math.sin(phi)*Math.cos(alt),R*Math.sin(alt),-R*Math.cos(phi)*Math.cos(alt)));
+  }
+  if(pts.length<2) return;
+  sunPathObj=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color:0xffc45e,transparent:true,opacity:0.5}));
+  scene.add(sunPathObj);
+}
+
+// ---- 状態 ----
+const ui={doy:188,tod:720,northOff:0,grid:false,labels:true,split:true,sunPath:true,measure:false,playing:false};
+
+function updateSun(){
+  const {alt,az}=sunAltAz(ui.doy,ui.tod);
+  const off=ui.northOff*Math.PI/180;
+  const phi=az+off, R=120;
+  const day=alt>0;
+  sun.visible=day; sunBall.visible=day;
+  if(day){
+    sun.position.set(R*Math.sin(phi)*Math.cos(alt),R*Math.sin(alt),-R*Math.cos(phi)*Math.cos(alt));
+    sun.intensity=0.4+0.8*Math.min(1,Math.sin(alt)*1.6);
+    const SB=52;
+    sunBall.position.set(SB*Math.sin(phi)*Math.cos(alt),SB*Math.sin(alt),-SB*Math.cos(phi)*Math.cos(alt));
+  }
+  amb.intensity = day?0.15:0.05;
+  renderer.setClearColor(day?0x9fc3dd:0x131c26);
+  const t=sunTimes(ui.doy);
+  document.getElementById('sunread').innerHTML=
+    `<b>${doyToMD(ui.doy)} ${fmtT(ui.tod)}</b><br>`+
+    `太陽高度 <b>${(alt*180/Math.PI).toFixed(1)}°</b> ／ 方位 <b>${(az*180/Math.PI).toFixed(0)}°</b><br>`+
+    `日の出 ${t.rise?fmtT(t.rise):'--'} ／ 日の入 ${t.set?fmtT(t.set):'--'}`;
+  document.getElementById('miniTime').textContent=`${doyToMD(ui.doy)} ${fmtT(ui.tod)}`;
+  document.getElementById('doyOut').textContent=doyToMD(ui.doy);
+  document.getElementById('todOut').textContent=fmtT(ui.tod);
+}
+function updateCompassRot(){
+  compass.rotation.y=-ui.northOff*Math.PI/180;
+  document.getElementById('northOut').textContent=`${ui.northOff}°`;
+}
+
+// ---- UI配線 ----
+const $=id=>document.getElementById(id);
+$('doy').oninput=e=>{ui.doy=+e.target.value;updateSun();buildSunPath();};
+$('tod').oninput=e=>{ui.tod=+e.target.value;updateSun();};
+$('northOff').oninput=e=>{ui.northOff=+e.target.value;updateCompassRot();updateSun();buildSunPath();};
+$('splitPos').oninput=e=>{
+  const f=+e.target.value/1000;
+  splitT=zMin+1+(zMax-zMin-2)*f;
+  buildSiteMeshes();
+  $('splitOut').textContent=`${(splitT-splitDefault>=0?'+':'')}${(splitT-splitDefault).toFixed(1)}m`;
+};
+function toggle(btnId,key,fn){
+  $(btnId).onclick=()=>{ui[key]=!ui[key];$(btnId).classList.toggle('on',ui[key]);fn&&fn();};
+}
+toggle('gridBtn','grid',()=>gridGroup.visible=ui.grid);
+toggle('labelBtn','labels',()=>labelGroup.visible=ui.labels);
+toggle('splitBtn','split',()=>splitLineObj&&(splitLineObj.visible=ui.split));
+toggle('sunPathBtn','sunPath',buildSunPath);
+toggle('measureBtn','measure',()=>{
+  $('measureTip').style.display=ui.measure?'block':'none';
+  $('measureTip').textContent='地面を2点タップして距離を計測';
+  measurePts.length=0; clearMeasure();
+  if(ui.measure) $('panel').classList.add('closed');
+});
+$('playBtn').onclick=()=>{
+  ui.playing=!ui.playing;
+  $('playBtn').classList.toggle('on',ui.playing);
+  $('playBtn').textContent=ui.playing?'⏸ 停止':'▶ 1日を再生';
+};
+$('panelHead').onclick=()=>$('panel').classList.toggle('closed');
+document.querySelectorAll('[data-view]').forEach(b=>{
+  b.onclick=()=>{
+    const v=b.dataset.view;
+    if(v==='top'){cam.a=Math.PI;cam.p=0.05;cam.r=68;}
+    if(v==='south'){cam.a=Math.PI;cam.p=1.15;cam.r=60;}
+    if(v==='north'){cam.a=0;cam.p=1.15;cam.r=60;}
+    if(v==='bird'){cam.a=Math.PI*0.78;cam.p=0.85;cam.r=75;}
+    cam.target.set(0,0,0);
+  };
+});
+
+// ---- 距離計測 ----
+const measurePts=[];
+let measureLine=null, measureMarks=[];
+const raycaster=new THREE.Raycaster();
+const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+function clearMeasure(){
+  if(measureLine){scene.remove(measureLine);measureLine=null;}
+  measureMarks.forEach(m=>scene.remove(m));measureMarks=[];
+}
+function measureTap(clientX,clientY){
+  const ndc=new THREE.Vector2(clientX/innerWidth*2-1,-(clientY/innerHeight)*2+1);
+  raycaster.setFromCamera(ndc,camera);
+  const hit=new THREE.Vector3();
+  if(!raycaster.ray.intersectPlane(groundPlane,hit)) return;
+  if(measurePts.length>=2){measurePts.length=0;clearMeasure();}
+  measurePts.push(hit.clone());
+  const mk=new THREE.Mesh(new THREE.SphereGeometry(0.4,12,12),
+    new THREE.MeshBasicMaterial({color:0xe07a30}));
+  mk.position.copy(hit);mk.position.y=0.3;scene.add(mk);measureMarks.push(mk);
+  if(measurePts.length===2){
+    const [p,q]=measurePts;
+    measureLine=new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([p.clone().setY(0.3),q.clone().setY(0.3)]),
+      new THREE.LineBasicMaterial({color:0xe07a30}));
+    scene.add(measureLine);
+    $('measureTip').textContent=`距離: ${p.distanceTo(q).toFixed(2)} m`;
+  } else {
+    $('measureTip').textContent='2点目をタップ';
+  }
+}
+
+// ---- 入力（マウス／タッチ） ----
+let drag=null, pinch=null, moved=false;
+const el=renderer.domElement;
+el.addEventListener('mousedown',e=>{drag={x:e.clientX,y:e.clientY,btn:e.button,shift:e.shiftKey};moved=false;});
+addEventListener('mousemove',e=>{
+  if(!drag)return;
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>3)moved=true;
+  if(drag.btn===2||drag.shift) panCam(dx,dy); else {cam.a-=dx*0.006;cam.p-=dy*0.006;}
+  drag.x=e.clientX;drag.y=e.clientY;
+});
+addEventListener('mouseup',e=>{
+  if(drag&&!moved&&ui.measure)measureTap(e.clientX,e.clientY);
+  drag=null;
+});
+el.addEventListener('contextmenu',e=>e.preventDefault());
+el.addEventListener('wheel',e=>{e.preventDefault();cam.r*=(1+Math.sign(e.deltaY)*0.09);},{passive:false});
+el.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){drag={x:e.touches[0].clientX,y:e.touches[0].clientY};moved=false;}
+  else if(e.touches.length===2){
+    drag=null;
+    const [a,b]=e.touches;
+    pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),
+           cx:(a.clientX+b.clientX)/2, cy:(a.clientY+b.clientY)/2};
+  }
+},{passive:true});
+el.addEventListener('touchmove',e=>{
+  if(e.touches.length===1&&drag){
+    const t=e.touches[0];
+    const dx=t.clientX-drag.x, dy=t.clientY-drag.y;
+    if(Math.abs(dx)+Math.abs(dy)>4)moved=true;
+    cam.a-=dx*0.007; cam.p-=dy*0.007;
+    drag.x=t.clientX;drag.y=t.clientY;
+  } else if(e.touches.length===2&&pinch){
+    const [a,b]=e.touches;
+    const d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    cam.r*=pinch.d/d;
+    const cx=(a.clientX+b.clientX)/2, cy=(a.clientY+b.clientY)/2;
+    panCam(cx-pinch.cx, cy-pinch.cy);
+    pinch={d,cx,cy};
+  }
+  e.preventDefault();
+},{passive:false});
+el.addEventListener('touchend',e=>{
+  if(e.touches.length===0){
+    if(drag&&!moved&&ui.measure&&e.changedTouches.length)
+      measureTap(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
+    drag=null;pinch=null;
+  }
+});
+function panCam(dx,dy){
+  const k=cam.r*0.0016;
+  const right=new THREE.Vector3().setFromSphericalCoords(1,Math.PI/2,cam.a-Math.PI/2);
+  const fwd=new THREE.Vector3().setFromSphericalCoords(1,Math.PI/2,cam.a);
+  cam.target.addScaledVector(right,dx*k).addScaledVector(fwd,dy*k);
+}
+
+// ---- リサイズ・ループ ----
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+let lastT=0;
+function loop(t){
+  requestAnimationFrame(loop);
+  if(ui.playing && t-lastT>60){
+    lastT=t;
+    ui.tod+=5;
+    if(ui.tod>1170)ui.tod=300;
+    $('tod').value=ui.tod;
+    updateSun();
+  }
+  applyCam();
+  renderer.render(scene,camera);
+}
+
+
+// ============================================================
+// v2.2 畑コーディネート（2026-07-08）
+// 反映: ①民泊リビング=腰窓・着座視線（窓から約5.4m以内の裸地は
+//   視界外→高さ0.3m以上の要素で構成） ②焚き火却下→パーゴラテラス
+//   ③西側の空白帯→ハーブの帯 ④建物に腰窓を表示
+// ============================================================
+const gFac=new THREE.Group(), gPath=new THREE.Group(), gBed=new THREE.Group(),
+      gHerb=new THREE.Group(), gRot=new THREE.Group(), gTree=new THREE.Group(),
+      gLawn=new THREE.Group(), gZone=new THREE.Group();
+[gFac,gPath,gBed,gHerb,gRot,gTree,gLawn,gZone].forEach(g=>scene.add(g));
+
+function mkBox(w,h,d,color,x,z,y=null){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshLambertMaterial({color}));
+  m.position.set(x,(y===null?h/2:y),z);
+  m.castShadow=true;m.receiveShadow=true;
+  return m;
+}
+function mkPatch(pts,color,y=0.03){
+  const m=new THREE.Mesh(new THREE.ShapeGeometry(shapeFrom(pts)),
+    new THREE.MeshLambertMaterial({color}));
+  m.rotation.x=-Math.PI/2;m.position.y=y;m.receiveShadow=true;
+  return m;
+}
+
+// ---- 民泊リビングの腰窓（建物南面・西側 常時表示） ----
+(function(){
+  const winGrp=new THREE.Group();
+  // 枠
+  const frame=new THREE.Mesh(new THREE.BoxGeometry(2.7,1.25,0.1),
+    new THREE.MeshLambertMaterial({color:0x3d4750}));
+  frame.position.set(0,0,0);
+  winGrp.add(frame);
+  // ガラス
+  const glass=new THREE.Mesh(new THREE.BoxGeometry(2.5,1.05,0.06),
+    new THREE.MeshLambertMaterial({color:0xa8d2e8,emissive:0x1a2b36}));
+  glass.position.set(0,0,0.04);
+  winGrp.add(glass);
+  // 中桟
+  const mullion=new THREE.Mesh(new THREE.BoxGeometry(0.05,1.05,0.08),
+    new THREE.MeshLambertMaterial({color:0x3d4750}));
+  mullion.position.set(0,0,0.04);
+  winGrp.add(mullion);
+  // 位置: 南面(z=-5.81)西側、窓台0.9m+窓高1.1m → 中心y=1.45
+  winGrp.position.set(-4.0,1.45,-5.78);
+  scene.add(winGrp);
+})();
+
+// ---- 動線 ----
+gPath.add(mkPatch([{x:19.5,z:-3.8},{x:19.5,z:-1.8},{x:-16,z:-1.8},{x:-16,z:-3.8}],0xcfc4a6));
+gPath.add(mkPatch([{x:15,z:-5.1},{x:19.5,z:-5.1},{x:19.5,z:-3.8},{x:15,z:-3.8}],0xcfc4a6));
+gPath.add(mkPatch([{x:-0.2,z:-1.8},{x:1.4,z:-1.8},{x:1.4,z:10.4},{x:-0.2,z:10.4}],0xd8cfb4));
+gPath.add(mkPatch([{x:-6.2,z:10.4},{x:1.4,z:10.4},{x:1.4,z:12.0},{x:-6.2,z:12.0}],0xd8cfb4));
+
+// ---- 作業ヤード ----
+gFac.add(mkPatch([{x:14.5,z:-4.5},{x:20,z:-4.5},{x:20.4,z:0.5},{x:14.5,z:0.5}],0xbdb49e));
+gFac.add(mkBox(3.6,2.3,2.7,0x9aa3ab,17,-2.4));
+gFac.add(mkBox(3.9,0.12,3.0,0x46525e,17,-2.4,2.42));
+gFac.add(mkBox(0.9,0.9,0.9,0x4a4038,14.4,-0.2));
+gFac.add(mkBox(0.9,0.9,0.9,0x4a4038,15.5,-0.2));
+
+// ---- 浅井戸＋立水栓＋洗い場 ----
+const well=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,0.6,16),
+  new THREE.MeshLambertMaterial({color:0xb8b5ad}));
+well.position.set(3.0,0.3,-0.9);well.castShadow=true;gFac.add(well);
+gFac.add(mkBox(0.5,0.5,0.5,0x35608c,3.9,-0.9));
+gFac.add(mkBox(0.15,1.0,0.15,0x5a6670,3.0,0.1));
+gFac.add(mkBox(0.9,0.55,0.55,0x8f9aa3,4.0,0.1));
+
+// ---- ゲスト収穫ガーデン（腰窓正面・ベッド高0.38mは着座視線で可視） ----
+[[-6.2,0.8],[-2.8,0.8],[-6.2,3.8],[-2.8,3.8]].forEach(([x,z])=>{
+  gBed.add(mkBox(2.4,0.38,1.2,0x8a6f52,x,z));
+  gBed.add(mkBox(2.2,0.1,1.0,0x5f8f4a,x,z,0.42));
+});
+gBed.add(mkBox(1.6,0.08,0.45,0x8a6f52,-9.2,2.3,0.45));
+gBed.add(mkBox(0.15,0.42,0.4,0x6b543d,-9.8,2.3,0.21));
+gBed.add(mkBox(0.15,0.42,0.4,0x6b543d,-8.6,2.3,0.21));
+
+// ---- ハーブの帯（旧・空白帯 / 腰窓から西向きの中景） ----
+gHerb.add(mkPatch([{x:-17.2,z:0},{x:-11,z:0},{x:-11,z:6.5},{x:-16.5,z:6.5}],0x8d7350,0.02));
+[[-13.5,1.0],[-13.5,3.2],[-13.5,5.4]].forEach(([x,z])=>{
+  gHerb.add(mkBox(2.2,0.25,1.1,0x7b5c39,x,z));
+  gHerb.add(mkBox(2.0,0.28,0.9,0x6f9a52,x,z,0.3));
+});
+// ラベンダー列＋ローズマリー（宿根・省力）
+[[-11.8,0.5],[-11.8,2.7],[-11.8,4.9]].forEach(([x,z])=>{
+  const lv=new THREE.Mesh(new THREE.SphereGeometry(0.38,10,8),
+    new THREE.MeshLambertMaterial({color:0x8a7fb5}));
+  lv.position.set(x,0.34,z);lv.castShadow=true;gHerb.add(lv);
+});
+const rm=new THREE.Mesh(new THREE.SphereGeometry(0.5,10,8),
+  new THREE.MeshLambertMaterial({color:0x557a4e}));
+rm.position.set(-15.7,0.45,0.0);rm.castShadow=true;gHerb.add(rm);
+
+// ---- 輪作4区画 ----
+const blocks=[[4.9,1.6,6,5],[11.2,1.6,6,5],[4.7,7.2,6,5],[10.5,6.7,4.4,4]];
+blocks.forEach(([cx,cz,w,d])=>{
+  gRot.add(mkPatch([{x:cx-w/2,z:cz-d/2},{x:cx+w/2,z:cz-d/2},{x:cx+w/2,z:cz+d/2},{x:cx-w/2,z:cz+d/2}],0x6f5233,0.02));
+  const n=Math.round(w/1.5);
+  for(let i=0;i<n;i++){
+    const rx=cx-w/2+0.75+i*(w-1.5)/(n-1);
+    gRot.add(mkBox(0.75,0.22,d-0.6,0x7b5c39,rx,cz));
+    gRot.add(mkBox(0.65,0.06,d-0.8,0x7da05a,rx,cz,0.26));
+  }
+});
+
+// ---- 果樹 ----
+function tree(x,z,r,h,bush=false){
+  const g=new THREE.Group();
+  if(!bush){
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.16,h,8),
+      new THREE.MeshLambertMaterial({color:0x6b4f35}));
+    trunk.position.y=h/2;trunk.castShadow=true;g.add(trunk);
+  }
+  const c=new THREE.Mesh(new THREE.SphereGeometry(r,14,12),
+    new THREE.MeshLambertMaterial({color:0x4e7a3a}));
+  c.position.y=bush?r*0.85:h+r*0.55;c.castShadow=true;g.add(c);
+  g.position.set(x,0,z);
+  return g;
+}
+const TREES=[
+  [-16.6,-1.8,1.3,1.6,'ウメ'],
+  [-17.7, 2.6,1.2,1.5,'イチジク'],
+  [-6.5, 6.2,0.75,0,'ブルーベリー',true],
+  [-3.8, 6.4,0.75,0,'ブルーベリー',true],
+  [15.8, 1.5,1.1,1.4,'ユズ'],
+  [17.9, 2.9,0.9,1.2,'キンカン'],
+  [19.6, 4.3,1.2,1.5,'甘夏'],
+  [-9.0,15.0,1.4,1.7,'カキ'],
+  [-9.5,11.5,1.0,1.4,'ジューンベリー'],
+  [-10.5,8.2,1.1,1.6,'ヤマボウシ'],
+];
+TREES.forEach(([x,z,r,h,name,bush])=>{
+  gTree.add(tree(x,z,r,h,!!bush));
+  const sp=textSprite(name,{color:'#cfe3b8',scale:1.6});
+  sp.position.set(x,(bush?1.6:h+r+1.0),z);
+  gTree.add(sp);
+});
+
+// ---- クローバー広場 ----
+gLawn.add(mkPatch([{x:-10,z:8.8},{x:0,z:10.3},{x:0,z:12},{x:-9,z:11.5}],0x86a860,0.025));
+gLawn.add(mkPatch([{x:3,z:9.5},{x:9,z:9.7},{x:4.6,z:11.7}],0x86a860,0.025));
+
+// ---- E点活用: パーゴラテラス（キウイ棚・火なしの「奥の間」） ----
+const terrace=new THREE.Group();
+const pad=new THREE.Mesh(new THREE.CircleGeometry(2.2,24),
+  new THREE.MeshLambertMaterial({color:0xb0a894}));
+pad.rotation.x=-Math.PI/2;pad.position.y=0.03;pad.receiveShadow=true;
+terrace.add(pad);
+// 柱4本
+[[-1.2,-1.2],[1.2,-1.2],[-1.2,1.2],[1.2,1.2]].forEach(([dx,dz])=>{
+  const post=new THREE.Mesh(new THREE.BoxGeometry(0.14,2.3,0.14),
+    new THREE.MeshLambertMaterial({color:0x6b543d}));
+  post.position.set(dx,1.15,dz);post.castShadow=true;terrace.add(post);
+});
+// 梁＋垂木
+[[-1.2],[1.2]].forEach(([dz])=>{
+  const beam=new THREE.Mesh(new THREE.BoxGeometry(2.9,0.12,0.16),
+    new THREE.MeshLambertMaterial({color:0x6b543d}));
+  beam.position.set(0,2.36,dz);beam.castShadow=true;terrace.add(beam);
+});
+for(let i=0;i<5;i++){
+  const raft=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.09,2.9),
+    new THREE.MeshLambertMaterial({color:0x6b543d}));
+  raft.position.set(-1.2+i*0.6,2.46,0);raft.castShadow=true;terrace.add(raft);
+}
+// キウイの棚面（緑のキャノピー）
+const kiwi=new THREE.Mesh(new THREE.BoxGeometry(3.1,0.16,3.1),
+  new THREE.MeshLambertMaterial({color:0x5c8a3f,transparent:true,opacity:0.88}));
+kiwi.position.set(0,2.6,0);kiwi.castShadow=true;terrace.add(kiwi);
+// ピクニックテーブル＋ベンチ
+terrace.add(mkBox(1.4,0.07,0.7,0x8a6f52,0,0,0.72));
+terrace.add(mkBox(0.12,0.7,0.6,0x6b543d,0,0,0.36));
+terrace.add(mkBox(1.4,0.06,0.3,0x8a6f52,0,-0.62,0.45));
+terrace.add(mkBox(1.4,0.06,0.3,0x8a6f52,0,0.62,0.45));
+terrace.position.set(-6.5,0,13.4);
+gLawn.add(terrace);
+
+// ---- ゾーン名ラベル ----
+[['作業ヤード',17,-4.2,2.2],['浅井戸・洗い場',3.0,-2.8,2.0],
+ ['ゲスト収穫ガーデン',-4.5,2.4,2.4],['ハーブの帯',-13.8,3.2,2.2],
+ ['輪作A',4.9,1.6,1.8],['輪作B',11.2,1.6,1.8],['輪作C',4.7,7.2,1.8],['輪作D',10.5,6.7,1.8],
+ ['柑橘の東列',17.5,3.2,2.0],['クローバー広場',-4.5,9.8,2.2],
+ ['パーゴラテラス(キウイ棚)',-6.5,13.4,2.2],['民泊リビング(腰窓)',-4.0,-6.6,2.0]]
+.forEach(([t,x,z,sc])=>{
+  const sp=textSprite(t,{scale:sc,bg:'rgba(13,20,27,.6)'});
+  sp.position.set(x,(t.includes('腰窓')?3.1:2.6),z);
+  gZone.add(sp);
+});
+
+// ---- トグル配線 ----
+[['cFac',gFac],['cPath',gPath],['cBed',gBed],['cHerb',gHerb],['cRot',gRot],
+ ['cTree',gTree],['cLawn',gLawn],['cZone',gZone]].forEach(([id,grp])=>{
+  document.getElementById(id).onclick=()=>{
+    grp.visible=!grp.visible;
+    document.getElementById(id).classList.toggle('on',grp.visible);
+  };
+});
+
+// ---- 初期化 ----
+buildSiteMeshes();
+$('splitOut').textContent='±0.0m';
+updateCompassRot();
+updateSun();
+buildSunPath();
+applyCam();
+loop(0);
+</script>
+</body>
+</html>

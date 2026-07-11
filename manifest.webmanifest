@@ -1,0 +1,14 @@
+{
+  "name": "Ryuka Landscape Designer",
+  "short_name": "Ryuka Field",
+  "description": "Ryuka石井敷地の畑・庭・民泊眺望3Dシミュレーター",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d141b",
+  "theme_color": "#141e28",
+  "orientation": "any",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
