@@ -1,12 +1,12 @@
 /* ============================================================
- Ryuka Landscape Designer v4.4.0
+ Ryuka Landscape Designer v4.5.0
  - Base coordinates/numeric values are preserved from v2.2.
  - x=east, z=south, y=up. Units: meters.
  ============================================================ */
 
 const DATA = window.DATA;
 
-const STATE={mode:'real',doy:188,tod:720,northOff:0,playing:false,sunPath:true,context:true,measure:false,
+const STATE={mode:'real',doy:188,tod:720,northOff:0,playing:false,sunPath:true,context:true,measure:false,quality:['auto','high','low'].includes(localStorage.getItem('ryuka-render-quality'))?localStorage.getItem('ryuka-render-quality'):'auto',
  layers:{facilities:true,paths:true,guestBeds:true,herbs:true,rotations:true,trees:true,lawn:true,labels:true},
  guides:{labels:true,grid:false,boundary:true,crowns:false},season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true,activePlan:'A'}
 
@@ -44,8 +44,8 @@ function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show')
 
 // ---------- renderer / scene ----------
 const container=$('scene');
-const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;container.appendChild(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;if('physicallyCorrectLights'in renderer)renderer.physicallyCorrectLights=true;container.appendChild(renderer.domElement);
 const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0xa9c1c2,.0055);
 const perspective=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,600);
 const ortho=new THREE.OrthographicCamera(-30,30,30,-30,.1,600);let camera=perspective;
@@ -83,6 +83,7 @@ function matStd(color,map=null,rough=.85,metal=0){return new THREE.MeshStandardM
 const GROUND=createGroundMaterials(renderer);
 const BUILDING=createBuildingMaterials(renderer);
 const PLANTS=createPlantMaterials();
+const ENVIRONMENT_MATERIALS=createEnvironmentMaterials();
 const MATS={
  surrounding:GROUND.surrounding,takuchi:GROUND.takuchi,field:GROUND.field,path:GROUND.path,
  soil:GROUND.rotationSoil,green:matStd(0x6e934d,null,.9),clover:GROUND.clover,wood:matStd(0x76543a,TEX.wood,.82),
@@ -97,25 +98,14 @@ function collectSharedResources(value,seen=new Set()){
  if(value.isTexture){sharedTextures.add(value);return}
  Object.values(value).forEach(v=>collectSharedResources(v,seen));
 }
-collectSharedResources(GROUND);collectSharedResources(BUILDING);collectSharedResources(PLANTS);collectSharedResources(PLANT_GEOMETRIES);collectSharedResources(MATS);
+collectSharedResources(GROUND);collectSharedResources(BUILDING);collectSharedResources(PLANTS);collectSharedResources(PLANT_GEOMETRIES);collectSharedResources(ENVIRONMENT_MATERIALS);collectSharedResources(ENVIRONMENT_GEOMETRIES);collectSharedResources(MATS);
 
 // ---------- sky, lights, context ----------
-const hemi=new THREE.HemisphereLight(0xcce2ee,0x62513d,.72);scene.add(hemi);
-const ambient=new THREE.AmbientLight(0xffffff,.16);scene.add(ambient);
-const sun=new THREE.DirectionalLight(0xfff0d5,2.2);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-55,right:55,top:55,bottom:-55,near:1,far:260});sun.shadow.bias=-.00025;sun.shadow.normalBias=.02;scene.add(sun);scene.add(sun.target);
-const skyGeo=new THREE.SphereGeometry(260,32,16);const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{top:{value:new THREE.Color(0x77a9c9)},bottom:{value:new THREE.Color(0xd8e0d7)},offset:{value:25},exponent:{value:.72}},vertexShader:'varying vec3 vWorld;void main(){vec4 w=modelMatrix*vec4(position,1.);vWorld=w.xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'uniform vec3 top;uniform vec3 bottom;uniform float offset;uniform float exponent;varying vec3 vWorld;void main(){float h=normalize(vWorld+vec3(0.,offset,0.)).y;gl_FragColor=vec4(mix(bottom,top,pow(max(h,0.0),exponent)),1.);}' });const sky=new THREE.Mesh(skyGeo,skyMat);scene.add(sky);
-const sunBall=new THREE.Mesh(new THREE.SphereGeometry(1.5,20,20),new THREE.MeshBasicMaterial({color:0xffd17a}));scene.add(sunBall);
-const contextGroup=new THREE.Group();scene.add(contextGroup);
-(function buildContext(){
- const ground=new THREE.Mesh(new THREE.CircleGeometry(250,72),MATS.surrounding);ground.rotation.x=-Math.PI/2;ground.position.y=-.09;ground.receiveShadow=true;contextGroup.add(ground);
- // north-side access road/context only, outside site geometry
- const road=new THREE.Mesh(new THREE.PlaneGeometry(72,6),GROUND.asphalt);road.rotation.x=-Math.PI/2;road.position.set(1,-.055,-19.2);road.receiveShadow=true;contextGroup.add(road);
- // deterministic distant vegetation; never modifies site coordinates
- const rand=seeded(501);for(let i=0;i<95;i++){const ang=rand()*Math.PI*2,rad=42+rand()*105,x=Math.sin(ang)*rad,z=Math.cos(ang)*rad;if(z>-24&&z<-15&&Math.abs(x)<38)continue;const s=.7+rand()*1.6;const g=makeContextTree(s);g.position.set(x,0,z);contextGroup.add(g)}
- // low hills
- for(let i=0;i<24;i++){const a=i/24*Math.PI*2,r=135+Math.sin(i*2.4)*10,h=11+Math.sin(i*1.7)*4;const hill=new THREE.Mesh(new THREE.ConeGeometry(22,h,12),matStd(0x52684d,null,1));hill.position.set(Math.sin(a)*r,h/2-1,Math.cos(a)*r);hill.scale.z=1.7;contextGroup.add(hill)}
-})();
-function makeContextTree(s=1){const g=new THREE.Group(),tr=new THREE.Mesh(new THREE.CylinderGeometry(.08*s,.13*s,1.25*s,6),matStd(0x5d4533));tr.position.y=.62*s;g.add(tr);const c=new THREE.Mesh(new THREE.DodecahedronGeometry(.65*s,0),matStd(0x4c7042));c.position.y=1.45*s;c.castShadow=true;g.add(c);return g}
+const ENVIRONMENT=createEnvironmentModel({scene,renderer,materials:ENVIRONMENT_MATERIALS,groundMaterial:MATS.surrounding,asphaltMaterial:GROUND.asphalt,data:DATA});
+const contextGroup=ENVIRONMENT.context,sky=ENVIRONMENT.sky,sun=ENVIRONMENT.keyLight,hemi=ENVIRONMENT.hemi,ambient=ENVIRONMENT.ambient;
+function effectiveQuality(){if(STATE.quality!=='auto')return STATE.quality;return innerWidth<=600||/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)?'low':'high'}
+function applyQuality(showToast=false){const q=effectiveQuality(),cap=q==='high'?1.85:1.25;renderer.setPixelRatio(Math.min(devicePixelRatio||1,cap));renderer.setSize(innerWidth,innerHeight);ENVIRONMENT.setQuality(q);document.querySelectorAll('button[data-quality]').forEach(b=>b.classList.toggle('on',b.dataset.quality===STATE.quality));document.body.dataset.quality=q;document.body.dataset.qualityChangeCount=String(ENVIRONMENT.root.userData.qualityChangeCount||0);document.body.dataset.shadowMapDisposeCount=String(ENVIRONMENT.root.userData.shadowMapDisposeCount||0);document.body.dataset.shadowMapSize=String(ENVIRONMENT.keyLight.shadow.mapSize.x);document.body.dataset.mountainSeamMax=String(Math.max(...ENVIRONMENT.mountainGeometries.map(g=>g.userData.seamDistance)));if(showToast)toast(STATE.quality==='auto'?'自動画質に変更':STATE.quality==='high'?'高画質に変更':'省電力画質に変更')}
+applyQuality();
 
 // ---------- core groups ----------
 const ROOT=new THREE.Group();scene.add(ROOT);
@@ -130,7 +120,7 @@ function clearRebuildGroup(group){
  materials.forEach(material=>{if(!sharedMaterials.has(material)){Object.values(material).forEach(value=>{if(value?.isTexture&&!sharedTextures.has(value))value.dispose?.()});material.dispose?.()}});
  group.clear();
 }
-function updateResourceMetrics(){requestAnimationFrame(()=>requestAnimationFrame(()=>{document.body.dataset.selectableCount=String(selectable.length);document.body.dataset.geometryCount=String(renderer.info.memory.geometries);document.body.dataset.textureCount=String(renderer.info.memory.textures)}))}
+function updateResourceMetrics(){requestAnimationFrame(()=>requestAnimationFrame(()=>{let lightCount=0;scene.traverse(object=>{if(object.isLight)lightCount++});document.body.dataset.selectableCount=String(selectable.length);document.body.dataset.geometryCount=String(renderer.info.memory.geometries);document.body.dataset.textureCount=String(renderer.info.memory.textures);document.body.dataset.lightCount=String(lightCount)}))}
 function meshShape(poly,mat,y=.01){const m=new THREE.Mesh(new THREE.ShapeGeometry(shapeFrom(poly)),mat);m.rotation.x=-Math.PI/2;m.position.y=y;m.receiveShadow=true;return m}
 function box(w,h,d,mat,x,z,y=h/2){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;return m}
 function cyl(rt,rb,h,mat,x,z,y=h/2,seg=12){const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;return m}
@@ -176,7 +166,7 @@ let sunPathObj=null;
 function sunAltAz(doy,minutes){const rad=Math.PI/180,decl=23.45*rad*Math.sin(2*Math.PI*(284+doy)/365),B=2*Math.PI*(doy-81)/365,eot=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B),solar=minutes+4*(DATA.lon-135)+eot,H=(solar/60-12)*15*rad,lat=DATA.lat*rad,sinAlt=Math.sin(lat)*Math.sin(decl)+Math.cos(lat)*Math.cos(decl)*Math.cos(H),alt=Math.asin(sinAlt);let cosAz=(Math.sin(decl)-sinAlt*Math.sin(lat))/(Math.cos(alt)*Math.cos(lat));cosAz=clamp(cosAz,-1,1);let az=Math.acos(cosAz);if(H>0)az=2*Math.PI-az;return{alt,az}}
 function sunTimes(doy){let rise=null,set=null,prev=sunAltAz(doy,0).alt;for(let m=5;m<=1439;m+=5){const a=sunAltAz(doy,m).alt;if(prev<=0&&a>0)rise=m;if(prev>0&&a<=0)set=m;prev=a}return{rise,set}}
 function buildSunPath(){if(sunPathObj){scene.remove(sunPathObj);disposeObj(sunPathObj);sunPathObj=null}if(!STATE.sunPath)return;const pts=[],off=STATE.northOff*Math.PI/180;for(let m=240;m<=1220;m+=10){const q=sunAltAz(STATE.doy,m);if(q.alt<=0)continue;const p=q.az+off,R=52;pts.push(new THREE.Vector3(R*Math.sin(p)*Math.cos(q.alt),R*Math.sin(q.alt),-R*Math.cos(p)*Math.cos(q.alt)))}sunPathObj=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xffc66e,transparent:true,opacity:.48}));scene.add(sunPathObj)}
-function updateSun(){const q=sunAltAz(STATE.doy,STATE.tod),off=STATE.northOff*Math.PI/180,p=q.az+off,day=q.alt>0,R=120;sun.visible=sunBall.visible=day;if(day){sun.position.set(R*Math.sin(p)*Math.cos(q.alt),R*Math.sin(q.alt),-R*Math.cos(p)*Math.cos(q.alt));sun.target.position.set(0,0,0);sun.intensity=.55+2.15*Math.min(1,Math.sin(q.alt)*1.5);sunBall.position.set(52*Math.sin(p)*Math.cos(q.alt),52*Math.sin(q.alt),-52*Math.cos(p)*Math.cos(q.alt))}const daylight=clamp((Math.sin(q.alt)+.05)*2.1,0,1);hemi.intensity=.22+.58*daylight;ambient.intensity=.05+.14*daylight;skyMat.uniforms.top.value.set(day?0x76a7c8:0x172331);skyMat.uniforms.bottom.value.set(day?(q.alt<.18?0xe7b28c:0xd8e0d7):0x28333a);scene.fog.color.set(day?0xa9c1c2:0x222c33);renderer.toneMappingExposure=(+$('exposure').value/100)*(day?.96:.58);
+function updateSun(){const q=sunAltAz(STATE.doy,STATE.tod),off=STATE.northOff*Math.PI/180,p=q.az+off;ENVIRONMENT.update({altitude:q.alt,azimuth:p,mode:STATE.mode,exposure:+$('exposure').value/100});document.body.dataset.environmentPeriod=ENVIRONMENT.root.userData.period;
  const st=sunTimes(STATE.doy),md=doyToMD(STATE.doy),tm=fmtTime(STATE.tod);$('timeHeadline').textContent=`${md} ${tm}`;$('timeHeadline').dataset.value=tm;$('timelineOut').textContent=tm;$('todOut').textContent=tm;$('doyOut').textContent=md;$('altRead').textContent=(q.alt*180/Math.PI).toFixed(1)+'°';$('riseRead').textContent=st.rise?fmtTime(st.rise):'--';$('setRead').textContent=st.set?fmtTime(st.set):'--';$('tod').value=$('timelineRange').value=STATE.tod;$('doy').value=STATE.doy}
 
 // ---------- mode styling ----------
@@ -186,7 +176,7 @@ function setMode(mode){STATE.mode=mode;document.querySelectorAll('[data-mode]').
 
 // ---------- build all ----------
 
-// ---------- v4.4.0 growth, seasons, walk-through and plan storage ----------
+// ---------- v4.5.0 growth, seasons, walk-through and plan storage ----------
 const PLAN_DEFAULTS={A:{season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true},B:{season:'autumn',growthYear:5,density:'lush',cropPattern:'B',showFlowers:true,showFruit:true}};
 let plans=JSON.parse(localStorage.getItem('ryuka-v4-plans')||'null')||JSON.parse(JSON.stringify(PLAN_DEFAULTS));
 const walk={pos:new THREE.Vector3(-4,1.65,-4.8),yaw:Math.PI,pitch:0,keys:{},drag:null,joystick:{x:0,y:0,pointerId:null}};
@@ -221,7 +211,7 @@ function updateWalk(dt){if(cam.mode!=='walk')return;const speed=dt*.006,front=ne
 document.querySelectorAll('[data-season]').forEach(b=>b.onclick=()=>{STATE.season=b.dataset.season;rebuildGrowth()});document.querySelectorAll('[data-density]').forEach(b=>b.onclick=()=>{STATE.density=b.dataset.density;rebuildGrowth()});document.querySelectorAll('[data-crop]').forEach(b=>b.onclick=()=>{STATE.cropPattern=b.dataset.crop;rebuildGrowth()});
 $('growthYear').oninput=e=>{STATE.growthYear=+e.target.value;rebuildGrowth()};$('flowerBtn').onclick=()=>{STATE.showFlowers=!STATE.showFlowers;rebuildGrowth()};$('fruitBtn').onclick=()=>{STATE.showFruit=!STATE.showFruit;rebuildGrowth()};$('walkBtn').onclick=startWalk;$('walkExitBtn').onclick=$('mobileWalkExit').onclick=stopWalk;
 $('planABtn').onclick=()=>readPlan('A');$('planBBtn').onclick=()=>readPlan('B');$('savePlanBtn').onclick=savePlan;$('resetPlanBtn').onclick=()=>{plans=JSON.parse(JSON.stringify(PLAN_DEFAULTS));localStorage.removeItem('ryuka-v4-plans');readPlan(STATE.activePlan);toast('プランを初期化しました')};
-$('exportBtn').onclick=()=>{savePlan();const blob=new Blob([JSON.stringify({version:'4.4.0',plans},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ryuka-landscape-plans.json';a.click();URL.revokeObjectURL(a.href)};$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const q=JSON.parse(r.result);plans=q.plans||q;localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));readPlan('A');toast('設定を読み込みました')}catch{toast('設定ファイルを読み込めません')}};r.readAsText(f)};
+$('exportBtn').onclick=()=>{savePlan();const blob=new Blob([JSON.stringify({version:'4.5.0',quality:STATE.quality,plans},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ryuka-landscape-plans.json';a.click();URL.revokeObjectURL(a.href)};$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const q=JSON.parse(r.result);plans=q.plans||q;if(q.quality&&['auto','high','low'].includes(q.quality)){STATE.quality=q.quality;localStorage.setItem('ryuka-render-quality',STATE.quality);applyQuality();updateSun()}localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));readPlan('A');toast('設定を読み込みました')}catch{toast('設定ファイルを読み込めません')}};r.readAsText(f)};
 addEventListener('keydown',e=>{walk.keys[e.code]=true;if(e.code==='Escape'&&cam.mode==='walk')stopWalk()});addEventListener('keyup',e=>walk.keys[e.code]=false);
 renderer.domElement.addEventListener('pointerdown',e=>{if(cam.mode==='walk'&&!$('panel').classList.contains('open'))walk.drag={x:e.clientX,y:e.clientY}});addEventListener('pointermove',e=>{if(cam.mode==='walk'&&walk.drag){walk.yaw-=(e.clientX-walk.drag.x)*.005;walk.pitch=clamp(walk.pitch-(e.clientY-walk.drag.y)*.004,-.75,.75);walk.drag={x:e.clientX,y:e.clientY}}});addEventListener('pointerup',()=>walk.drag=null);addEventListener('pointercancel',()=>walk.drag=null);
 const joystick=$('joystick'),joystickKnob=$('joystickKnob');
@@ -236,14 +226,15 @@ updateResourceMetrics();
 const layerDefs=[['facilities','施設・作業ヤード','#9aa3ab'],['paths','園路・動線','#d8cfb4'],['guestBeds','収穫ガーデン','#6f934d'],['herbs','ハーブ帯','#8176a6'],['rotations','輪作区画','#7b5c39'],['trees','果樹','#4e7a3a'],['lawn','広場・パーゴラ','#86a860']];
 layerDefs.forEach(d=>{const b=document.createElement('button');b.className='layer-btn on';b.dataset.layer=d[0];b.innerHTML=`<span class="layer-row"><span class="layer-dot" style="background:${d[2]}"></span><span class="layer-label">${d[1]}</span><span class="switch"></span></span>`;$('layerList').appendChild(b);b.onclick=()=>{STATE.layers[d[0]]=!STATE.layers[d[0]];groups[d[0]].visible=STATE.layers[d[0]];b.classList.toggle('on',STATE.layers[d[0]])}});
 document.querySelectorAll('.panel-tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.panel-tabs button').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.panel-page').forEach(x=>x.classList.toggle('on',x.dataset.page===b.dataset.page))});
-document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>flyTo(b.dataset.view));
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{setMode(b.dataset.mode);updateSun()});document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>flyTo(b.dataset.view));
+document.querySelectorAll('button[data-quality]').forEach(b=>b.onclick=()=>{STATE.quality=b.dataset.quality;localStorage.setItem('ryuka-render-quality',STATE.quality);applyQuality(true);updateSun();updateResourceMetrics()});
 document.querySelectorAll('[data-guide]').forEach(b=>b.onclick=()=>{const k=b.dataset.guide;if(k==='crowns'&&STATE.mode==='plan'){groups.crowns.visible=true;b.classList.add('on');return}STATE.guides[k]=!STATE.guides[k];b.classList.toggle('on',STATE.guides[k]);if(k==='labels')groups.labels.visible=STATE.guides.labels;if(k==='grid')gridGroup.visible=STATE.guides.grid;if(k==='boundary')boundaryObjects.forEach(x=>x.visible=STATE.guides.boundary);if(k==='crowns')groups.crowns.visible=STATE.guides.crowns});
 $('fov').oninput=e=>{perspective.fov=+e.target.value;perspective.updateProjectionMatrix();$('fovOut').textContent=e.target.value+'°'};$('resetView').onclick=()=>flyTo('birdNE');
 $('doy').oninput=e=>{STATE.doy=+e.target.value;updateSun();buildSunPath()};$('tod').oninput=e=>{STATE.tod=+e.target.value;updateSun()};$('timelineRange').oninput=e=>{STATE.tod=+e.target.value;updateSun()};
 function togglePlay(){STATE.playing=!STATE.playing;$('playBtn').classList.toggle('on',STATE.playing);$('playBtn').textContent=STATE.playing?'⏸ 停止':'▶ 1日を再生';$('timelinePlay').textContent=STATE.playing?'Ⅱ':'▶'}$('playBtn').onclick=$('timelinePlay').onclick=togglePlay;
 $('sunPathBtn').onclick=()=>{STATE.sunPath=!STATE.sunPath;$('sunPathBtn').classList.toggle('on',STATE.sunPath);buildSunPath()};
 $('exposure').oninput=e=>{$('exposureOut').textContent=(e.target.value/100).toFixed(2);updateSun()};$('shadowSoft').oninput=e=>{$('shadowOut').textContent=e.target.value+'%';renderer.shadowMap.type=+e.target.value>45?THREE.PCFSoftShadowMap:THREE.PCFShadowMap};
-$('contextBtn').onclick=()=>{STATE.context=!STATE.context;$('contextBtn').classList.toggle('on',STATE.context);contextGroup.visible=STATE.context&&STATE.mode==='real'};
+$('contextBtn').onclick=()=>{STATE.context=!STATE.context;$('contextBtn').classList.toggle('on',STATE.context);ENVIRONMENT.setContextVisible(STATE.context,STATE.mode)};
 $('northOff').oninput=e=>{STATE.northOff=+e.target.value;$('northOut').textContent=STATE.northOff+'°';compass.rotation.y=-STATE.northOff*Math.PI/180;updateSun();buildSunPath()};
 $('splitPos').oninput=e=>{const f=+e.target.value/1000;splitT=zMin+1+(zMax-zMin-2)*f;$('splitOut').textContent=`${splitT-splitDefault>=0?'+':''}${(splitT-splitDefault).toFixed(1)}m`;buildSite()};
 $('panelBtn').onclick=$('mobileHandle').onclick=()=>setPanelOpen(!$('panel').classList.contains('open'));
@@ -265,7 +256,7 @@ el.addEventListener('touchstart',e=>{if(e.touches.length===1){drag={x:e.touches[
 function panCam(dx,dy){const k=cam.r*.0016,right=new THREE.Vector3().setFromSphericalCoords(1,Math.PI/2,cam.a-Math.PI/2),fwd=new THREE.Vector3().setFromSphericalCoords(1,Math.PI/2,cam.a);cam.target.addScaledVector(right,dx*k).addScaledVector(fwd,dy*k)}
 
 // ---------- render loop ----------
-addEventListener('resize',()=>{perspective.aspect=innerWidth/innerHeight;perspective.updateProjectionMatrix();if(camera===ortho)setTopCamera();renderer.setSize(innerWidth,innerHeight)});
+addEventListener('resize',()=>{perspective.aspect=innerWidth/innerHeight;perspective.updateProjectionMatrix();if(camera===ortho)setTopCamera();applyQuality();updateSun()});
 let last=0,lastFrame=0;function loop(t){requestAnimationFrame(loop);const dt=Math.min(50,t-lastFrame);lastFrame=t;if(STATE.playing&&t-last>55){last=t;STATE.tod+=5;if(STATE.tod>1170)STATE.tod=300;updateSun()}updateWalk(dt);applyCamera();renderer.render(scene,camera)}
 flyTo('birdNE');loop(0);
 }

@@ -1,6 +1,6 @@
 # Architecture
 
-Ryuka Landscape Designer v4.4.0 は、GitHub Pagesで配信できる静的なThree.jsアプリケーションです。
+Ryuka Landscape Designer v4.5.0 は、GitHub Pagesで配信できる静的なThree.jsアプリケーションです。
 
 ## ファイル構成
 
@@ -11,13 +11,15 @@ Ryuka Landscape Designer v4.4.0 は、GitHub Pagesで配信できる静的なThr
 - `js/building-model.js`: 固定された建物寸法・開口位置からREAL/PLANモデルを構築します。
 - `js/plant-materials.js`: 樹種・季節別の共有植物マテリアルを定義します。
 - `js/plant-models.js`: 固定樹木データから樹種別の幹・枝・葉・花・果実を構築します。
+- `js/environment-materials.js`: 山並み、周辺樹林、路肩、接地影などの共有環境マテリアルを定義します。
+- `js/environment-model.js`: 時刻連動の空・照明・環境反射、山並み、周辺樹林、道路周辺を構築します。
 - `js/app.js`: 描画、操作、季節・成長表現、プラン保存、データ検証を担当します。
 - `vendor/three.min.js`: Three.jsランタイムです。
 - `sw.js`: オフライン利用向けにアプリ資産をキャッシュします。
 
 ## 読み込み順
 
-`three.min.js` → `fixed-site-data.js` → `ground-materials.js` → `building-materials.js` → `building-model.js` → `plant-materials.js` → `plant-models.js` → `app.js` の順です。`app.js`は起動直後に固定データを検証し、異常時はコンソールと画面上に警告します。
+`three.min.js` → `fixed-site-data.js` → `ground-materials.js` → `building-materials.js` → `building-model.js` → `plant-materials.js` → `plant-models.js` → `environment-materials.js` → `environment-model.js` → `app.js` の順です。`app.js`は起動直後に固定データを検証し、異常時はコンソールと画面上に警告します。
 
 ## 状態と固定データ
 
