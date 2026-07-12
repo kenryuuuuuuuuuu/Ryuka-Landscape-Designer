@@ -89,14 +89,15 @@ const MATS={
  wall:BUILDING.wall,roof:BUILDING.roof,glass:BUILDING.glass,
  planTak:GROUND.planTak,planField:GROUND.planField,planLine:new THREE.LineBasicMaterial({color:0xf6efe2})
 };
-const sharedMaterials=new Set(),sharedTextures=new Set();
+const sharedMaterials=new Set(),sharedTextures=new Set(),sharedGeometries=new Set();
 function collectSharedResources(value,seen=new Set()){
  if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);
+ if(value.isBufferGeometry){sharedGeometries.add(value);return}
  if(value.isMaterial){sharedMaterials.add(value);Object.values(value).forEach(v=>v?.isTexture&&sharedTextures.add(v));return}
  if(value.isTexture){sharedTextures.add(value);return}
  Object.values(value).forEach(v=>collectSharedResources(v,seen));
 }
-collectSharedResources(GROUND);collectSharedResources(BUILDING);collectSharedResources(PLANTS);collectSharedResources(MATS);
+collectSharedResources(GROUND);collectSharedResources(BUILDING);collectSharedResources(PLANTS);collectSharedResources(PLANT_GEOMETRIES);collectSharedResources(MATS);
 
 // ---------- sky, lights, context ----------
 const hemi=new THREE.HemisphereLight(0xcce2ee,0x62513d,.72);scene.add(hemi);
@@ -125,7 +126,7 @@ function clearRebuildGroup(group){
  const members=new Set(),geometries=new Set(),materials=new Set();
  group.traverse(object=>{members.add(object);if(object.geometry)geometries.add(object.geometry);if(object.material){const list=Array.isArray(object.material)?object.material:[object.material];list.forEach(material=>materials.add(material))}});
  for(let i=selectable.length-1;i>=0;i--)if(members.has(selectable[i]))selectable.splice(i,1);
- geometries.forEach(geometry=>geometry.dispose?.());
+ geometries.forEach(geometry=>{if(!sharedGeometries.has(geometry))geometry.dispose?.()});
  materials.forEach(material=>{if(!sharedMaterials.has(material)){Object.values(material).forEach(value=>{if(value?.isTexture&&!sharedTextures.has(value))value.dispose?.()});material.dispose?.()}});
  group.clear();
 }
@@ -192,7 +193,15 @@ const walk={pos:new THREE.Vector3(-4,1.65,-4.8),yaw:Math.PI,pitch:0,keys:{},drag
 const SEASON_COLORS={spring:[0x78a95c,0x94bb68],summer:[0x4f873f,0x6b9d4f],autumn:[0x9a7a3f,0xb46d35],winter:[0x6e7659,0x78806c]};
 const CROP_NAMES={A:['果菜類','葉物・根菜','つる物','緑肥・休耕'],B:['豆類','果菜類','葉物・香味','根菜類']};
 function densityFactor(){return STATE.density==='low'?.62:STATE.density==='lush'?1.38:1}
-function buildTrees(){clearRebuildGroup(groups.trees);clearRebuildGroup(groups.crowns);DATA.trees.forEach((t,i)=>{groups.trees.add(createPlantModel(t,i,{season:STATE.season,growthYear:STATE.growthYear,showFlowers:STATE.showFlowers,showFruit:STATE.showFruit,mode:STATE.mode},PLANTS,tag));const rr=t.r*(.75+STATE.growthYear*.075),ring=new THREE.Mesh(new THREE.RingGeometry(rr*.97,rr,48),new THREE.MeshBasicMaterial({color:isEvergreenSpecies(t.name)?0x4f8b61:0x9ac277,transparent:true,opacity:.55,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.set(t.x,.13,t.z);groups.crowns.add(ring)});groups.crowns.visible=STATE.guides.crowns||STATE.mode==='plan'}
+function buildTrees(){
+ clearRebuildGroup(groups.trees);clearRebuildGroup(groups.crowns);
+ DATA.trees.forEach((t,i)=>{
+  groups.trees.add(createPlantModel(t,i,{season:STATE.season,growthYear:STATE.growthYear,showFlowers:STATE.showFlowers,showFruit:STATE.showFruit,mode:STATE.mode},PLANTS,tag));
+  const rr=t.r*(.75+STATE.growthYear*.075),ring=new THREE.Mesh(new THREE.RingGeometry(rr*.97,rr,48),new THREE.MeshBasicMaterial({color:isEvergreenSpecies(t.name)?0x4f8b61:0x9ac277,transparent:true,opacity:.55,side:THREE.DoubleSide}));
+  ring.rotation.x=-Math.PI/2;ring.position.set(t.x,.13,t.z);groups.crowns.add(ring)
+ });
+ const crownsVisible=STATE.guides.crowns||STATE.mode==='plan';groups.crowns.visible=crownsVisible;document.querySelector('[data-guide="crowns"]')?.classList.toggle('on',crownsVisible)
+}
 function buildRotations(){clearRebuildGroup(groups.rotations);const density=densityFactor(),names=CROP_NAMES[STATE.cropPattern],soilMaterial=STATE.mode==='real'?GROUND.rotationSoil:GROUND.planSoil,ridgeMaterial=STATE.mode==='real'?GROUND.ridgeSoil:GROUND.planSoil;DATA.rotations.forEach((b,bi)=>{const patch=meshShape([{x:b.cx-b.w/2,z:b.cz-b.d/2},{x:b.cx+b.w/2,z:b.cz-b.d/2},{x:b.cx+b.w/2,z:b.cz+b.d/2},{x:b.cx-b.w/2,z:b.cz+b.d/2}],soilMaterial,.037);groups.rotations.add(tag(patch,{title:b.name+'｜'+names[bi],body:'季節・密度・輪作案を切り替えて完成景観を比較する区画。座標と区画寸法は固定です。',meta:[['作付',names[bi]],['寸法',`${b.w} × ${b.d}m`]]}));const n=Math.round(b.w/1.5);for(let i=0;i<n;i++){const x=b.cx-b.w/2+.75+i*(b.w-1.5)/(Math.max(1,n-1));groups.rotations.add(soilRidge(.75,b.d,ridgeMaterial,x,b.cz));const rows=Math.max(2,Math.round((b.d-.8)/(.75/density)));for(let j=0;j<rows;j++){const z=b.cz-(b.d-.8)/2+j*(b.d-.8)/Math.max(1,rows-1);if(STATE.season!=='winter'||bi===3)addPlantCluster(groups.rotations,x,z,SEASON_COLORS[STATE.season][bi%2],.12+.055*density,740+bi*200+i*30+j)}}})}
 function applyGrowthUI(){
  document.querySelectorAll('[data-season]').forEach(b=>b.classList.toggle('on',b.dataset.season===STATE.season));document.querySelectorAll('[data-density]').forEach(b=>b.classList.toggle('on',b.dataset.density===STATE.density));document.querySelectorAll('[data-crop]').forEach(b=>b.classList.toggle('on',b.dataset.crop===STATE.cropPattern));
@@ -228,7 +237,7 @@ const layerDefs=[['facilities','施設・作業ヤード','#9aa3ab'],['paths','�
 layerDefs.forEach(d=>{const b=document.createElement('button');b.className='layer-btn on';b.dataset.layer=d[0];b.innerHTML=`<span class="layer-row"><span class="layer-dot" style="background:${d[2]}"></span><span class="layer-label">${d[1]}</span><span class="switch"></span></span>`;$('layerList').appendChild(b);b.onclick=()=>{STATE.layers[d[0]]=!STATE.layers[d[0]];groups[d[0]].visible=STATE.layers[d[0]];b.classList.toggle('on',STATE.layers[d[0]])}});
 document.querySelectorAll('.panel-tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.panel-tabs button').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.panel-page').forEach(x=>x.classList.toggle('on',x.dataset.page===b.dataset.page))});
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>flyTo(b.dataset.view));
-document.querySelectorAll('[data-guide]').forEach(b=>b.onclick=()=>{const k=b.dataset.guide;STATE.guides[k]=!STATE.guides[k];b.classList.toggle('on',STATE.guides[k]);if(k==='labels')groups.labels.visible=STATE.guides.labels;if(k==='grid')gridGroup.visible=STATE.guides.grid;if(k==='boundary')boundaryObjects.forEach(x=>x.visible=STATE.guides.boundary);if(k==='crowns')groups.crowns.visible=STATE.guides.crowns});
+document.querySelectorAll('[data-guide]').forEach(b=>b.onclick=()=>{const k=b.dataset.guide;if(k==='crowns'&&STATE.mode==='plan'){groups.crowns.visible=true;b.classList.add('on');return}STATE.guides[k]=!STATE.guides[k];b.classList.toggle('on',STATE.guides[k]);if(k==='labels')groups.labels.visible=STATE.guides.labels;if(k==='grid')gridGroup.visible=STATE.guides.grid;if(k==='boundary')boundaryObjects.forEach(x=>x.visible=STATE.guides.boundary);if(k==='crowns')groups.crowns.visible=STATE.guides.crowns});
 $('fov').oninput=e=>{perspective.fov=+e.target.value;perspective.updateProjectionMatrix();$('fovOut').textContent=e.target.value+'°'};$('resetView').onclick=()=>flyTo('birdNE');
 $('doy').oninput=e=>{STATE.doy=+e.target.value;updateSun();buildSunPath()};$('tod').oninput=e=>{STATE.tod=+e.target.value;updateSun()};$('timelineRange').oninput=e=>{STATE.tod=+e.target.value;updateSun()};
 function togglePlay(){STATE.playing=!STATE.playing;$('playBtn').classList.toggle('on',STATE.playing);$('playBtn').textContent=STATE.playing?'⏸ 停止':'▶ 1日を再生';$('timelinePlay').textContent=STATE.playing?'Ⅱ':'▶'}$('playBtn').onclick=$('timelinePlay').onclick=togglePlay;

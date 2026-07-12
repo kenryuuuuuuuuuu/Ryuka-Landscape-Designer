@@ -1,1 +1,47 @@
-(function(g){'use strict';g.createPlantMaterials=function(){const m=(c,r=.82)=>new THREE.MeshStandardMaterial({color:c,roughness:r});return Object.freeze({trunk:m(0x5a402d,.94),twig:m(0x66503a,.92),deciduous:m(0x4f813f),citrus:m(0x285f32),fig:m(0x4d7c3b),blueberry:m(0x557f43),spring:m(0x77a956),autumn:m(0xb45d31),autumnGold:m(0xc28a35),winter:m(0x735a43),flowerWhite:m(0xf2eee0,.72),flowerPink:m(0xf0c9ce,.72),fruitPurple:m(0x593d61,.68),fruitBlue:m(0x334d79,.65),fruitYellow:m(0xe5b928,.62),fruitOrange:m(0xe48224,.62),fruitRed:m(0xa83b32,.66),shadow:new THREE.MeshBasicMaterial({color:0x182018,transparent:true,opacity:.2,depthWrite:false}),planDeciduous:new THREE.MeshBasicMaterial({color:0x7fa46a}),planEvergreen:new THREE.MeshBasicMaterial({color:0x3f7650})})}})(window);
+(function exposePlantMaterials(global) {
+  'use strict';
+
+  function standard(color, roughness = 0.82) {
+    return new THREE.MeshStandardMaterial({ color, roughness });
+  }
+
+  global.createPlantMaterials = function createPlantMaterials() {
+    return Object.freeze({
+      trunk: standard(0x5a402d, 0.94),
+      twig: standard(0x66503a, 0.92),
+
+      deciduous: standard(0x4f813f),
+      citrus: standard(0x285f32),
+      fig: standard(0x4d7c3b),
+      blueberry: standard(0x557f43),
+      springDeciduous: standard(0x78aa59),
+      springCitrus: standard(0x397548),
+      springFig: standard(0x6f9850),
+      springBlueberry: standard(0x83a95a),
+      autumnRed: standard(0xa74738),
+      autumnOrange: standard(0xc56c32),
+      autumnGold: standard(0xc1973c),
+      autumnBrown: standard(0x86603b),
+      winterBlueberry: standard(0x7b493d),
+      winterDryLeaf: standard(0x796447),
+
+      flowerWhite: standard(0xf3f0e4, 0.72),
+      flowerPink: standard(0xf2cbd1, 0.72),
+      flowerCore: standard(0xe3b43d, 0.72),
+      fruitPurple: standard(0x593d61, 0.68),
+      fruitBlue: standard(0x334d79, 0.65),
+      fruitYellow: standard(0xe5b928, 0.62),
+      fruitOrange: standard(0xe48224, 0.62),
+      fruitRed: standard(0xa83b32, 0.66),
+
+      shadow: new THREE.MeshBasicMaterial({
+        color: 0x182018,
+        transparent: true,
+        opacity: 0.2,
+        depthWrite: false
+      }),
+      planDeciduous: new THREE.MeshBasicMaterial({ color: 0x7fa46a }),
+      planEvergreen: new THREE.MeshBasicMaterial({ color: 0x3f7650 })
+    });
+  };
+})(window);
