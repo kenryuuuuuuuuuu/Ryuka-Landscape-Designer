@@ -30,13 +30,18 @@
       heights.push(baseHeight + Math.sin(i * 0.47 + seed) * amplitude * 0.38 + Math.sin(i * 0.16) * amplitude * 0.55 + walk * amplitude);
     }
     heights.push(heights[0]);
+    const radii = [];
+    for (let i = 0; i < segments; i += 1) {
+      radii.push(radius + Math.sin(i * 0.31 + seed) * 3);
+    }
+    radii.push(radii[0]);
     const positions = [];
     const indices = [];
     for (let i = 0; i <= segments; i += 1) {
       const angle = i / segments * Math.PI * 2;
-      const r = radius + Math.sin(i * 0.31 + seed) * 3;
-      const x = Math.sin(angle) * r;
-      const z = Math.cos(angle) * r;
+      const r = radii[i];
+      const x = i === segments ? positions[0] : Math.sin(angle) * r;
+      const z = i === segments ? positions[2] : Math.cos(angle) * r;
       positions.push(x, -3, z, x, heights[i], z);
       if (i < segments) {
         const n = i * 2;
@@ -47,6 +52,12 @@
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
+    const position = geometry.getAttribute('position');
+    const firstBottom = new THREE.Vector3().fromBufferAttribute(position, 0);
+    const firstTop = new THREE.Vector3().fromBufferAttribute(position, 1);
+    const lastBottom = new THREE.Vector3().fromBufferAttribute(position, segments * 2);
+    const lastTop = new THREE.Vector3().fromBufferAttribute(position, segments * 2 + 1);
+    geometry.userData.seamDistance = Math.max(firstBottom.distanceTo(lastBottom), firstTop.distanceTo(lastTop));
     return geometry;
   }
 
@@ -204,12 +215,17 @@
       return environments[key];
     }
 
-    let effectiveQuality = 'high';
+    let effectiveQuality = null;
     function setQuality(quality) {
+      if (quality === effectiveQuality) return;
       effectiveQuality = quality;
+      root.userData.qualityChangeCount = (root.userData.qualityChangeCount || 0) + 1;
       const high = quality === 'high';
       keyLight.shadow.mapSize.set(high ? 2048 : 1024, high ? 2048 : 1024);
-      keyLight.shadow.map?.dispose();
+      if (keyLight.shadow.map) {
+        keyLight.shadow.map.dispose();
+        root.userData.shadowMapDisposeCount = (root.userData.shadowMapDisposeCount || 0) + 1;
+      }
       keyLight.shadow.map = null;
       broadleaf.count = high ? Math.min(92, broadleafIndex) : 42;
       conifer.count = high ? Math.min(46, coniferIndex) : 20;
@@ -274,6 +290,6 @@
     }
 
     setQuality('high');
-    return Object.freeze({ root, context, sky, keyLight, hemi, ambient, setQuality, setContextVisible, update, environments });
+    return Object.freeze({ root, context, sky, keyLight, hemi, ambient, mountainGeometries, setQuality, setContextVisible, update, environments });
   };
 })(window);
