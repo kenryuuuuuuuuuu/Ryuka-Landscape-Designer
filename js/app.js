@@ -1,5 +1,5 @@
 /* ============================================================
- Ryuka Landscape Designer v4.2.0
+ Ryuka Landscape Designer v4.3.0
  - Base coordinates/numeric values are preserved from v2.2.
  - x=east, z=south, y=up. Units: meters.
  ============================================================ */
@@ -78,13 +78,14 @@ function textureNoise(base,spots,seed=1,size=256){
  for(let i=0;i<spots;i++){const a=r()*.22+.03,rad=r()*3+0.4;x.fillStyle=`rgba(${r()<.5?255:0},${r()<.5?255:0},${r()<.5?255:0},${a})`;x.beginPath();x.arc(r()*size,r()*size,rad,0,Math.PI*2);x.fill()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(8,8);t.anisotropy=renderer.capabilities.getMaxAnisotropy();t.encoding=THREE.sRGBEncoding;return t
 }
-const TEX={wood:textureNoise('#76543a',1600,25),wall:textureNoise('#e7dfd0',500,27),roof:textureNoise('#3f4a4d',1500,29)};
+const TEX={wood:textureNoise('#76543a',1600,25)};
 function matStd(color,map=null,rough=.85,metal=0){return new THREE.MeshStandardMaterial({color,map,roughness:rough,metalness:metal})}
 const GROUND=createGroundMaterials(renderer);
+const BUILDING=createBuildingMaterials(renderer);
 const MATS={
  surrounding:GROUND.surrounding,takuchi:GROUND.takuchi,field:GROUND.field,path:GROUND.path,
  soil:GROUND.rotationSoil,green:matStd(0x6e934d,null,.9),clover:GROUND.clover,wood:matStd(0x76543a,TEX.wood,.82),
- wall:matStd(0xe7dfd0,TEX.wall,.88),roof:matStd(0x414c50,TEX.roof,.78,.03),glass:new THREE.MeshPhysicalMaterial({color:0x8fc5da,roughness:.18,metalness:0,transmission:.18,transparent:true,opacity:.72}),
+ wall:BUILDING.wall,roof:BUILDING.roof,glass:BUILDING.glass,
  planTak:GROUND.planTak,planField:GROUND.planField,planLine:new THREE.LineBasicMaterial({color:0xf6efe2})
 };
 const sharedMaterials=new Set(),sharedTextures=new Set();
@@ -94,7 +95,7 @@ function collectSharedResources(value,seen=new Set()){
  if(value.isTexture){sharedTextures.add(value);return}
  Object.values(value).forEach(v=>collectSharedResources(v,seen));
 }
-collectSharedResources(GROUND);collectSharedResources(MATS);
+collectSharedResources(GROUND);collectSharedResources(BUILDING);collectSharedResources(MATS);
 
 // ---------- sky, lights, context ----------
 const hemi=new THREE.HemisphereLight(0xcce2ee,0x62513d,.72);scene.add(hemi);
@@ -127,6 +128,7 @@ function clearRebuildGroup(group){
  materials.forEach(material=>{if(!sharedMaterials.has(material)){Object.values(material).forEach(value=>{if(value?.isTexture&&!sharedTextures.has(value))value.dispose?.()});material.dispose?.()}});
  group.clear();
 }
+function updateResourceMetrics(){requestAnimationFrame(()=>requestAnimationFrame(()=>{document.body.dataset.selectableCount=String(selectable.length);document.body.dataset.geometryCount=String(renderer.info.memory.geometries);document.body.dataset.textureCount=String(renderer.info.memory.textures)}))}
 function meshShape(poly,mat,y=.01){const m=new THREE.Mesh(new THREE.ShapeGeometry(shapeFrom(poly)),mat);m.rotation.x=-Math.PI/2;m.position.y=y;m.receiveShadow=true;return m}
 function box(w,h,d,mat,x,z,y=h/2){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;return m}
 function cyl(rt,rb,h,mat,x,z,y=h/2,seg=12){const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;return m}
@@ -142,20 +144,7 @@ let boundaryObjects=[];
 function buildBoundary(){boundaryObjects.forEach(o=>{groups.guides.remove(o);disposeObj(o)});boundaryObjects=[];const pts=DATA.site.map(p=>new THREE.Vector3(p.x,.08,p.z));pts.push(pts[0].clone());const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:STATE.mode==='real'?0xf2eadc:0xffffff,transparent:true,opacity:.92}));groups.guides.add(line);boundaryObjects.push(line);const n=clipPoly(DATA.site,splitT,true),xs=n.filter(p=>Math.abs(p.z-splitT)<1e-5).map(p=>p.x);if(xs.length>1){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(Math.min(...xs),.1,splitT),new THREE.Vector3(Math.max(...xs),.1,splitT)]),l=new THREE.Line(g,new THREE.LineDashedMaterial({color:0xffffff,dashSize:.8,gapSize:.55,transparent:true,opacity:.82}));l.computeLineDistances();groups.guides.add(l);boundaryObjects.push(l)}groups.guides.visible=STATE.guides.boundary}
 
 // ---------- building ----------
-function buildBuilding(){groups.building.clear();const B=DATA.building;
- const foundation=box(B.w+.3,.32,B.d+.3,matStd(0x928a7a),B.cx,B.cz,.16);groups.building.add(foundation);
- const body=box(B.w,B.wallH,B.d,MATS.wall,B.cx,B.cz,B.wallH/2+.3);groups.building.add(tag(body,{title:'住宅＋民泊 建物',body:'元HTMLの建物中心・幅・奥行・壁高・棟高を保持した外観モデル。南側に民泊リビングの腰窓があります。',meta:[['中心',`x ${B.cx.toFixed(3)} / z ${B.cz.toFixed(3)}`],['寸法',`${B.w} × ${B.d}m`],['壁高',`${B.wallH}m`]]}));
- const rise=B.ridgeH-B.wallH,slope=Math.hypot(B.d/2+.34,rise),ang=Math.atan2(rise,B.d/2+.34),roofMat=MATS.roof;
- const north=box(B.w+.65,.18,slope,roofMat,B.cx,B.cz-B.d/4-.08,B.wallH+.3+rise/2);north.rotation.x=-ang;const south=box(B.w+.65,.18,slope,roofMat,B.cx,B.cz+B.d/4+.08,B.wallH+.3+rise/2);south.rotation.x=ang;groups.building.add(north,south);
- // south windows incl. fixed waist window at source coordinate
- function windowAt(x,w=2.7,y=1.75,h=1.25){const frame=box(w+.14,h+.14,.12,matStd(0x374247),x,B.cz+B.d/2+.065,y);const glass=box(w,h,.07,MATS.glass,x,B.cz+B.d/2+.13,y);groups.building.add(frame,glass);return glass}
- const mainWindow=B.southWindows[0],mainWin=windowAt(mainWindow.x,mainWindow.w,1.75,1.25);tag(mainWin,{title:'民泊リビング 腰窓',body:'着座時にゲスト収穫ガーデンやハーブ帯を眺めるための重要視点。専用カメラから見え方を確認できます。',meta:[['中心',`x ${mainWindow.x.toFixed(1)}`],['窓台想定','約0.9m']]});B.southWindows.slice(1).forEach(w=>windowAt(w.x,w.w,1.75,1.25));
- // north windows and doors as visual detail (within exact envelope)
- for(const x of B.northWindows){const w=box(1.5,1.05,.07,MATS.glass,x,B.cz-B.d/2-.08,2.0);groups.building.add(w)}
- const door=box(1.2,2.2,.11,matStd(0x675444,TEX.wood,.8),B.doorX,B.cz+B.d/2+.07,1.4);groups.building.add(door);
- // fascia/ridge
- groups.building.add(box(B.w+.72,.14,.16,matStd(0x2f383b),B.cx,B.cz,B.ridgeH+.31));
-}
+function buildBuilding(){clearRebuildGroup(groups.building);groups.building.add(createBuildingModel({data:DATA.building,materials:BUILDING,mode:STATE.mode,tag}))}
 
 // ---------- paths / facilities ----------
 function buildPaths(){clearRebuildGroup(groups.paths);const material=STATE.mode==='real'?GROUND.path:GROUND.planPath;DATA.paths.forEach((p,i)=>{const m=meshShape(p,material,.045);groups.paths.add(tag(m,{title:'園路・作業動線',body:'建物、井戸、輪作区画、広場をつなぐ通路。元HTMLの四つのポリゴン座標を保持しています。',meta:[['区間',String(i+1)]]}))})}
@@ -192,11 +181,11 @@ function updateSun(){const q=sunAltAz(STATE.doy,STATE.tod),off=STATE.northOff*Ma
 // ---------- mode styling ----------
 function setMode(mode){STATE.mode=mode;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));$('insMeta').lastElementChild.textContent=mode==='real'?'リアル':'設計図';
  if(mode==='real'){renderer.toneMapping=THREE.ACESFilmicToneMapping;scene.fog.density=.0055;contextGroup.visible=STATE.context;groups.labels.visible=STATE.guides.labels;groups.guides.visible=STATE.guides.boundary||STATE.guides.grid;sky.visible=true}else{renderer.toneMapping=THREE.NoToneMapping;scene.fog.density=.002;contextGroup.visible=false;groups.labels.visible=true;groups.guides.visible=true;sky.visible=true}
- buildSite();buildPaths();buildFacilities();buildGuestBeds();buildHerbs();buildRotations();buildLawn();toast(mode==='real'?'リアル表示に切替':'設計図表示に切替')}
+ buildSite();buildBuilding();buildPaths();buildFacilities();buildGuestBeds();buildHerbs();buildRotations();buildLawn();updateResourceMetrics();toast(mode==='real'?'リアル表示に切替':'設計図表示に切替')}
 
 // ---------- build all ----------
 
-// ---------- v4.2.0 growth, seasons, walk-through and plan storage ----------
+// ---------- v4.3.0 growth, seasons, walk-through and plan storage ----------
 const PLAN_DEFAULTS={A:{season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true},B:{season:'autumn',growthYear:5,density:'lush',cropPattern:'B',showFlowers:true,showFruit:true}};
 let plans=JSON.parse(localStorage.getItem('ryuka-v4-plans')||'null')||JSON.parse(JSON.stringify(PLAN_DEFAULTS));
 const walk={pos:new THREE.Vector3(-4,1.65,-4.8),yaw:Math.PI,pitch:0,keys:{},drag:null,joystick:{x:0,y:0,pointerId:null}};
@@ -220,7 +209,7 @@ function applyGrowthUI(){
  const n=CROP_NAMES[STATE.cropPattern];['A','B','C','D'].forEach((k,i)=>$('crop'+k+'Read').textContent=n[i]);$('planABtn').classList.toggle('on',STATE.activePlan==='A');$('planBBtn').classList.toggle('on',STATE.activePlan==='B');
  $('compareBadge').textContent=`PLAN ${STATE.activePlan}｜${{spring:'春',summer:'夏',autumn:'秋',winter:'冬'}[STATE.season]}・${STATE.growthYear}年後・${{low:'省管理',standard:'標準',lush:'豊かな景観'}[STATE.density]}`;
 }
-function rebuildGrowth(){buildTrees();buildRotations();buildGuestBeds();buildHerbs();buildLawn();applyGrowthUI()}
+function rebuildGrowth(){buildTrees();buildRotations();buildGuestBeds();buildHerbs();buildLawn();applyGrowthUI();updateResourceMetrics()}
 function readPlan(k){STATE.activePlan=k;Object.assign(STATE,plans[k]);rebuildGrowth()}
 function savePlan(){plans[STATE.activePlan]={season:STATE.season,growthYear:STATE.growthYear,density:STATE.density,cropPattern:STATE.cropPattern,showFlowers:STATE.showFlowers,showFruit:STATE.showFruit};localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));toast(`プラン${STATE.activePlan}を保存しました`)}
 function resetJoystickInput(){walk.joystick.x=walk.joystick.y=0;walk.joystick.pointerId=null;$('joystickKnob').style.transform='translate(0,0)'}
@@ -232,7 +221,7 @@ function updateWalk(dt){if(cam.mode!=='walk')return;const speed=dt*.006,front=ne
 document.querySelectorAll('[data-season]').forEach(b=>b.onclick=()=>{STATE.season=b.dataset.season;rebuildGrowth()});document.querySelectorAll('[data-density]').forEach(b=>b.onclick=()=>{STATE.density=b.dataset.density;rebuildGrowth()});document.querySelectorAll('[data-crop]').forEach(b=>b.onclick=()=>{STATE.cropPattern=b.dataset.crop;rebuildGrowth()});
 $('growthYear').oninput=e=>{STATE.growthYear=+e.target.value;rebuildGrowth()};$('flowerBtn').onclick=()=>{STATE.showFlowers=!STATE.showFlowers;rebuildGrowth()};$('fruitBtn').onclick=()=>{STATE.showFruit=!STATE.showFruit;rebuildGrowth()};$('walkBtn').onclick=startWalk;$('walkExitBtn').onclick=$('mobileWalkExit').onclick=stopWalk;
 $('planABtn').onclick=()=>readPlan('A');$('planBBtn').onclick=()=>readPlan('B');$('savePlanBtn').onclick=savePlan;$('resetPlanBtn').onclick=()=>{plans=JSON.parse(JSON.stringify(PLAN_DEFAULTS));localStorage.removeItem('ryuka-v4-plans');readPlan(STATE.activePlan);toast('プランを初期化しました')};
-$('exportBtn').onclick=()=>{savePlan();const blob=new Blob([JSON.stringify({version:'4.2.0',plans},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ryuka-landscape-plans.json';a.click();URL.revokeObjectURL(a.href)};$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const q=JSON.parse(r.result);plans=q.plans||q;localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));readPlan('A');toast('設定を読み込みました')}catch{toast('設定ファイルを読み込めません')}};r.readAsText(f)};
+$('exportBtn').onclick=()=>{savePlan();const blob=new Blob([JSON.stringify({version:'4.3.0',plans},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ryuka-landscape-plans.json';a.click();URL.revokeObjectURL(a.href)};$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const q=JSON.parse(r.result);plans=q.plans||q;localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));readPlan('A');toast('設定を読み込みました')}catch{toast('設定ファイルを読み込めません')}};r.readAsText(f)};
 addEventListener('keydown',e=>{walk.keys[e.code]=true;if(e.code==='Escape'&&cam.mode==='walk')stopWalk()});addEventListener('keyup',e=>walk.keys[e.code]=false);
 renderer.domElement.addEventListener('pointerdown',e=>{if(cam.mode==='walk'&&!$('panel').classList.contains('open'))walk.drag={x:e.clientX,y:e.clientY}});addEventListener('pointermove',e=>{if(cam.mode==='walk'&&walk.drag){walk.yaw-=(e.clientX-walk.drag.x)*.005;walk.pitch=clamp(walk.pitch-(e.clientY-walk.drag.y)*.004,-.75,.75);walk.drag={x:e.clientX,y:e.clientY}}});addEventListener('pointerup',()=>walk.drag=null);addEventListener('pointercancel',()=>walk.drag=null);
 const joystick=$('joystick'),joystickKnob=$('joystickKnob');
@@ -241,6 +230,7 @@ joystick.addEventListener('pointerdown',e=>{if(cam.mode!=='walk'||$('panel').cla
 applyGrowthUI();
 
 buildSite();buildBuilding();buildPaths();buildFacilities();buildGuestBeds();buildHerbs();buildRotations();buildTrees();buildLawn();buildLabels();buildGrid();buildSunPath();updateSun();
+updateResourceMetrics();
 
 // ---------- UI / layers ----------
 const layerDefs=[['facilities','施設・作業ヤード','#9aa3ab'],['paths','園路・動線','#d8cfb4'],['guestBeds','収穫ガーデン','#6f934d'],['herbs','ハーブ帯','#8176a6'],['rotations','輪作区画','#7b5c39'],['trees','果樹','#4e7a3a'],['lawn','広場・パーゴラ','#86a860']];

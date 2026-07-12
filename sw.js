@@ -1,5 +1,5 @@
-const CACHE = 'ryuka-landscape-v4-2-0-ground-materials-20260712';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './vendor/three.min.js', './data/fixed-site-data.js', './js/ground-materials.js', './js/app.js'];
+const CACHE = 'ryuka-landscape-v4-3-0-building-exterior-20260712';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './vendor/three.min.js', './data/fixed-site-data.js', './js/ground-materials.js', './js/building-materials.js', './js/building-model.js', './js/app.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
   self.skipWaiting();
