@@ -1,14 +1,14 @@
 (function exposeGroundMaterials(global) {
   'use strict';
 
-  const SIZE = 384;
+  const SIZE = 256;
 
   function random(seed) {
     let state = seed >>> 0;
     return () => ((state = (state * 1664525 + 1013904223) >>> 0) / 4294967296);
   }
 
-  function canvasTexture(renderer, painter, repeat) {
+  function canvasTexture(renderer, painter, repeat, isColorTexture) {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = SIZE;
     const context = canvas.getContext('2d');
@@ -16,7 +16,7 @@
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(repeat, repeat);
-    texture.encoding = THREE.sRGBEncoding;
+    texture.encoding = isColorTexture ? THREE.sRGBEncoding : THREE.LinearEncoding;
     texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
@@ -119,18 +119,18 @@
 
   global.createGroundMaterials = function createGroundMaterials(renderer) {
     const textures = {
-      grass: canvasTexture(renderer, grassPainter('#496744', 101, false), 12),
-      clover: canvasTexture(renderer, grassPainter('#58784b', 103, true), 10),
-      field: canvasTexture(renderer, soilPainter('#59402d', 201, false), 9),
-      guestSoil: canvasTexture(renderer, soilPainter('#65452e', 203, true), 7),
-      ridgeSoil: canvasTexture(renderer, soilPainter('#4d3424', 207, false), 8),
-      path: canvasTexture(renderer, aggregatePainter('#a99672', 301, false, true), 9),
-      gravel: canvasTexture(renderer, aggregatePainter('#8f8a7b', 303, false, false), 10),
-      yardGravel: canvasTexture(renderer, aggregatePainter('#858074', 307, false, false), 11),
-      asphalt: canvasTexture(renderer, aggregatePainter('#5b5c5b', 311, true, true), 12),
-      soilHeight: canvasTexture(renderer, heightPainter(401, false), 9),
-      ridgeHeight: canvasTexture(renderer, heightPainter(403, true), 8),
-      gravelHeight: canvasTexture(renderer, heightPainter(405, false), 10)
+      grass: canvasTexture(renderer, grassPainter('#496744', 101, false), 12, true),
+      clover: canvasTexture(renderer, grassPainter('#58784b', 103, true), 10, true),
+      field: canvasTexture(renderer, soilPainter('#59402d', 201, false), 9, true),
+      guestSoil: canvasTexture(renderer, soilPainter('#65452e', 203, true), 7, true),
+      ridgeSoil: canvasTexture(renderer, soilPainter('#4d3424', 207, false), 8, true),
+      path: canvasTexture(renderer, aggregatePainter('#a99672', 301, false, true), 9, true),
+      gravel: canvasTexture(renderer, aggregatePainter('#8f8a7b', 303, false, false), 10, true),
+      yardGravel: canvasTexture(renderer, aggregatePainter('#858074', 307, false, false), 11, true),
+      asphalt: canvasTexture(renderer, aggregatePainter('#5b5c5b', 311, true, true), 12, true),
+      soilHeight: canvasTexture(renderer, heightPainter(401, false), 9, false),
+      ridgeHeight: canvasTexture(renderer, heightPainter(403, true), 8, false),
+      gravelHeight: canvasTexture(renderer, heightPainter(405, false), 10, false)
     };
     return Object.freeze({
       textures: Object.freeze(textures),
