@@ -16,18 +16,24 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function seeded(seed){let s=seed>>>0;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296)}
 function polyArea(p){let s=0;for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length];s+=a.x*b.z-b.x*a.z}return Math.abs(s)/2}
 function validateFixedSiteData(){
- const errors=[],required=['site','edgeLengths','building','siteArea','takuchiArea','lat','lon','paths','rotations','trees','facilities','guestGarden','herbs','lawn'];
+ const errors=[],required=['site','edgeLengths','building','siteArea','takuchiArea','lat','lon','paths','rotations','trees','facilities','guestGarden','herbs','lawn','labels'];
  required.forEach(key=>{if(DATA?.[key]===undefined||DATA[key]===null)errors.push(`必須データ「${key}」がありません`)});
  if(DATA?.site?.length!==5)errors.push(`敷地点数が5点ではありません（${DATA?.site?.length??0}点）`);
+ ['cx','cz','w','d'].forEach(key=>{if(!Number.isFinite(DATA?.building?.[key]))errors.push(`必須データ「building.${key}」がありません`)});
  if(DATA?.building?.w!==19.11||DATA?.building?.d!==7.28)errors.push('建物寸法が19.11 × 7.28mではありません');
+ if(!Number.isFinite(DATA?.siteArea)||Math.abs(DATA.siteArea-988.87)>.05)errors.push(`固定敷地面積が約988.87㎡ではありません（${Number.isFinite(DATA?.siteArea)?DATA.siteArea.toFixed(2):'未設定'}㎡）`);
  const calculatedArea=DATA?.site?.length>=3?polyArea(DATA.site):NaN;
  if(!Number.isFinite(calculatedArea)||Math.abs(calculatedArea-988.87)>.05)errors.push(`敷地面積が約988.87㎡ではありません（${Number.isFinite(calculatedArea)?calculatedArea.toFixed(2):'計算不能'}㎡）`);
  if(Math.abs((DATA?.takuchiArea??NaN)-319)>.05)errors.push('宅地面積が約319㎡ではありません');
+ if(!Array.isArray(DATA?.paths)||DATA.paths.length===0)errors.push('園路データが空です');
+ if(!Array.isArray(DATA?.rotations)||DATA.rotations.length!==4)errors.push(`輪作区画が4区画ではありません（${DATA?.rotations?.length??0}区画）`);
+ if(!Array.isArray(DATA?.trees)||DATA.trees.length===0)errors.push('果樹・植物データが空です');
+ if(!Array.isArray(DATA?.labels)||DATA.labels.length===0)errors.push('ラベルデータが空です');
  if(!Object.isFrozen(DATA)||!Object.isFrozen(DATA?.site)||!Object.isFrozen(DATA?.building))errors.push('固定データがObject.freezeで保護されていません');
  if(errors.length){console.error('[Ryuka] 固定データ検証エラー',errors);const warning=document.createElement('div');warning.id='fixedDataWarning';warning.setAttribute('role','alert');warning.textContent=`固定データに異常があります：${errors.join('／')}`;Object.assign(warning.style,{position:'fixed',left:'12px',right:'12px',top:'72px',zIndex:'1000',padding:'12px 16px',borderRadius:'10px',background:'#a62828',color:'#fff',fontSize:'12px',boxShadow:'0 8px 30px rgba(0,0,0,.35)'});document.body.appendChild(warning)}
  return errors.length===0;
 }
-validateFixedSiteData();
+if(validateFixedSiteData()){
 function clipPoly(poly,t,keepNorth){const out=[],inside=p=>keepNorth?p.z<=t:p.z>=t;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],ia=inside(a),ib=inside(b);if(ia)out.push({...a});if(ia!==ib){const q=(t-a.z)/(b.z-a.z);out.push({x:a.x+(b.x-a.x)*q,z:t})}}return out}
 function shapeFrom(poly){const s=new THREE.Shape();poly.forEach((p,i)=>i?s.lineTo(p.x,-p.z):s.moveTo(p.x,-p.z));return s}
 function disposeObj(o){if(!o)return;o.traverse?.(c=>{c.geometry?.dispose?.();if(c.material){const ms=Array.isArray(c.material)?c.material:[c.material];ms.forEach(m=>{Object.values(m).forEach(v=>v&&v.isTexture&&v.dispose?.());m.dispose?.()})}})}
@@ -270,3 +276,4 @@ function panCam(dx,dy){const k=cam.r*.0016,right=new THREE.Vector3().setFromSphe
 addEventListener('resize',()=>{perspective.aspect=innerWidth/innerHeight;perspective.updateProjectionMatrix();if(camera===ortho)setTopCamera();renderer.setSize(innerWidth,innerHeight)});
 let last=0,lastFrame=0;function loop(t){requestAnimationFrame(loop);const dt=Math.min(50,t-lastFrame);lastFrame=t;if(STATE.playing&&t-last>55){last=t;STATE.tod+=5;if(STATE.tod>1170)STATE.tod=300;updateSun()}updateWalk(dt);applyCamera();renderer.render(scene,camera)}
 flyTo('birdNE');loop(0);
+}
