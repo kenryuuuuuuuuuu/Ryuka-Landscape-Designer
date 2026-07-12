@@ -1,5 +1,5 @@
 /* ============================================================
- Ryuka Landscape Designer v4.3.0
+ Ryuka Landscape Designer v4.4.0
  - Base coordinates/numeric values are preserved from v2.2.
  - x=east, z=south, y=up. Units: meters.
  ============================================================ */
@@ -82,20 +82,22 @@ const TEX={wood:textureNoise('#76543a',1600,25)};
 function matStd(color,map=null,rough=.85,metal=0){return new THREE.MeshStandardMaterial({color,map,roughness:rough,metalness:metal})}
 const GROUND=createGroundMaterials(renderer);
 const BUILDING=createBuildingMaterials(renderer);
+const PLANTS=createPlantMaterials();
 const MATS={
  surrounding:GROUND.surrounding,takuchi:GROUND.takuchi,field:GROUND.field,path:GROUND.path,
  soil:GROUND.rotationSoil,green:matStd(0x6e934d,null,.9),clover:GROUND.clover,wood:matStd(0x76543a,TEX.wood,.82),
  wall:BUILDING.wall,roof:BUILDING.roof,glass:BUILDING.glass,
  planTak:GROUND.planTak,planField:GROUND.planField,planLine:new THREE.LineBasicMaterial({color:0xf6efe2})
 };
-const sharedMaterials=new Set(),sharedTextures=new Set();
+const sharedMaterials=new Set(),sharedTextures=new Set(),sharedGeometries=new Set();
 function collectSharedResources(value,seen=new Set()){
  if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);
+ if(value.isBufferGeometry){sharedGeometries.add(value);return}
  if(value.isMaterial){sharedMaterials.add(value);Object.values(value).forEach(v=>v?.isTexture&&sharedTextures.add(v));return}
  if(value.isTexture){sharedTextures.add(value);return}
  Object.values(value).forEach(v=>collectSharedResources(v,seen));
 }
-collectSharedResources(GROUND);collectSharedResources(BUILDING);collectSharedResources(MATS);
+collectSharedResources(GROUND);collectSharedResources(BUILDING);collectSharedResources(PLANTS);collectSharedResources(PLANT_GEOMETRIES);collectSharedResources(MATS);
 
 // ---------- sky, lights, context ----------
 const hemi=new THREE.HemisphereLight(0xcce2ee,0x62513d,.72);scene.add(hemi);
@@ -124,7 +126,7 @@ function clearRebuildGroup(group){
  const members=new Set(),geometries=new Set(),materials=new Set();
  group.traverse(object=>{members.add(object);if(object.geometry)geometries.add(object.geometry);if(object.material){const list=Array.isArray(object.material)?object.material:[object.material];list.forEach(material=>materials.add(material))}});
  for(let i=selectable.length-1;i>=0;i--)if(members.has(selectable[i]))selectable.splice(i,1);
- geometries.forEach(geometry=>geometry.dispose?.());
+ geometries.forEach(geometry=>{if(!sharedGeometries.has(geometry))geometry.dispose?.()});
  materials.forEach(material=>{if(!sharedMaterials.has(material)){Object.values(material).forEach(value=>{if(value?.isTexture&&!sharedTextures.has(value))value.dispose?.()});material.dispose?.()}});
  group.clear();
 }
@@ -158,7 +160,6 @@ function addPlantCluster(parent,x,z,color=0x648b46,scale=.22,seed=1){const r=see
 function raisedBed(parent,x,z,w,d,seed=1,green=0x668e48){const frame=box(w,.38,d,MATS.wood,x,z,.19),soil=box(w-.16,.08,d-.16,STATE.mode==='real'?GROUND.guestSoil:GROUND.planSoil,x,z,.42);parent.add(frame,soil);const r=seeded(seed),cols=Math.max(2,Math.floor(w/.42)),rows=Math.max(2,Math.floor(d/.42));for(let ix=0;ix<cols;ix++)for(let iz=0;iz<rows;iz++){if(r()<.18)continue;addPlantCluster(parent,x-w/2+.28+ix*(w-.56)/(cols-1),z-d/2+.25+iz*(d-.5)/(rows-1),green,.14,seed+ix*31+iz)}return frame}
 function buildGuestBeds(){clearRebuildGroup(groups.guestBeds);const G=DATA.guestGarden;G.beds.forEach((p,i)=>{const b=raisedBed(groups.guestBeds,p.x,p.z,2.4,1.2,100+i,i%2?0x6e9147:0x598b48);tag(b,{title:'ゲスト収穫ガーデン',body:'民泊の腰窓から見え、滞在中に収穫体験ができる高さ約0.38mのレイズドベッド。',meta:[['ベッド',`${i+1}/4`],['中心',`x ${p.x} / z ${p.z}`]]})});groups.guestBeds.add(box(1.6,.08,.45,MATS.wood,G.bench.x,G.bench.z,.45));G.benchLegs.forEach(p=>groups.guestBeds.add(box(.15,.42,.4,MATS.wood,p.x,p.z)))}
 function buildHerbs(){clearRebuildGroup(groups.herbs);const H=DATA.herbs,ground=meshShape(H.ground,STATE.mode==='real'?GROUND.guestSoil:GROUND.planSoil,.035);groups.herbs.add(tag(ground,{title:'ハーブの帯',body:'民泊から西側の中景をつくる宿根草中心の帯状植栽。ラベンダー、ローズマリー等を想定。',meta:[['範囲','西側境界沿い']]}));H.beds.forEach((p,i)=>{raisedBed(groups.herbs,p.x,p.z,2.2,1.1,220+i,0x668854)});H.clusters.forEach((p,i)=>{for(let k=0;k<7;k++){const a=k/7*Math.PI*2,r=.2+(.08*(k%2));addPlantCluster(groups.herbs,p.x+Math.sin(a)*r,p.z+Math.cos(a)*r,0x776f9c,.11,300+i*20+k)}});addPlantCluster(groups.herbs,H.accent.x,H.accent.z,0x4f7648,.38,350)}
-function makeTreeModel(t,i){const g=new THREE.Group();if(!t.bush){const trunk=cyl(.11,.16,t.h,matStd(0x604731),0,0,t.h/2,8);g.add(trunk)}const baseY=t.bush?t.r*.65:t.h+t.r*.38;const cols=[0x4e7a3a,0x567f3c,0x638a45,0x477238];const r=seeded(700+i);for(let k=0;k<(t.bush?4:7);k++){const s=t.r*(.48+r()*.34),c=new THREE.Mesh(new THREE.IcosahedronGeometry(s,1),matStd(cols[k%cols.length]));c.position.set((r()-.5)*t.r*.95,baseY+(r()-.45)*t.r*.62,(r()-.5)*t.r*.95);c.scale.y=.78;c.castShadow=true;g.add(c)}g.position.set(t.x,0,t.z);g.userData.info={title:t.name,body:`${t.name}の配置モデル。将来樹冠ガイドでは元HTMLの半径値を基準に範囲を表示します。`,meta:[['座標',`x ${t.x} / z ${t.z}`],['基準半径',`${t.r}m`]]};selectable.push(g);return g}
 function buildLawn(){clearRebuildGroup(groups.lawn);const L=DATA.lawn,lawnMaterial=STATE.mode==='real'?GROUND.clover:GROUND.planClover,a=meshShape(L.west,lawnMaterial,.04),b=meshShape(L.east,lawnMaterial,.04);groups.lawn.add(tag(a,{title:'クローバー広場',body:'畑の中に余白と滞在場所をつくる低草地。パーゴラへの動線と果樹景観をつなぎます。',meta:[['位置','南側中央〜西']]}),b);
  const terrace=new THREE.Group(),pad=new THREE.Mesh(new THREE.CircleGeometry(2.2,32),STATE.mode==='real'?GROUND.pergolaGravel:GROUND.planGravel);pad.rotation.x=-Math.PI/2;pad.position.y=.05;terrace.add(tag(pad,{title:'パーゴラテラス（キウイ棚）',body:'敷地奥の滞在場所。キウイ棚の木陰で畑と建物を眺める「奥の間」です。',meta:[['中心','x -6.5 / z 13.4'],['直径','約4.4m']]}));[[-1.2,-1.2],[1.2,-1.2],[-1.2,1.2],[1.2,1.2]].forEach(p=>terrace.add(box(.14,2.3,.14,MATS.wood,p[0],p[1],1.15)));[-1.2,1.2].forEach(z=>terrace.add(box(2.9,.12,.16,MATS.wood,0,z,2.36)));for(let i=0;i<5;i++)terrace.add(box(.09,.09,2.9,MATS.wood,-1.2+i*.6,0,2.46));
  // foliage canopy made of leaf clumps rather than a flat box
@@ -181,27 +182,26 @@ function updateSun(){const q=sunAltAz(STATE.doy,STATE.tod),off=STATE.northOff*Ma
 // ---------- mode styling ----------
 function setMode(mode){STATE.mode=mode;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));$('insMeta').lastElementChild.textContent=mode==='real'?'リアル':'設計図';
  if(mode==='real'){renderer.toneMapping=THREE.ACESFilmicToneMapping;scene.fog.density=.0055;contextGroup.visible=STATE.context;groups.labels.visible=STATE.guides.labels;groups.guides.visible=STATE.guides.boundary||STATE.guides.grid;sky.visible=true}else{renderer.toneMapping=THREE.NoToneMapping;scene.fog.density=.002;contextGroup.visible=false;groups.labels.visible=true;groups.guides.visible=true;sky.visible=true}
- buildSite();buildBuilding();buildPaths();buildFacilities();buildGuestBeds();buildHerbs();buildRotations();buildLawn();updateResourceMetrics();toast(mode==='real'?'リアル表示に切替':'設計図表示に切替')}
+ buildSite();buildBuilding();buildPaths();buildFacilities();buildGuestBeds();buildHerbs();buildRotations();buildTrees();buildLawn();updateResourceMetrics();toast(mode==='real'?'リアル表示に切替':'設計図表示に切替')}
 
 // ---------- build all ----------
 
-// ---------- v4.3.0 growth, seasons, walk-through and plan storage ----------
+// ---------- v4.4.0 growth, seasons, walk-through and plan storage ----------
 const PLAN_DEFAULTS={A:{season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true},B:{season:'autumn',growthYear:5,density:'lush',cropPattern:'B',showFlowers:true,showFruit:true}};
 let plans=JSON.parse(localStorage.getItem('ryuka-v4-plans')||'null')||JSON.parse(JSON.stringify(PLAN_DEFAULTS));
 const walk={pos:new THREE.Vector3(-4,1.65,-4.8),yaw:Math.PI,pitch:0,keys:{},drag:null,joystick:{x:0,y:0,pointerId:null}};
 const SEASON_COLORS={spring:[0x78a95c,0x94bb68],summer:[0x4f873f,0x6b9d4f],autumn:[0x9a7a3f,0xb46d35],winter:[0x6e7659,0x78806c]};
 const CROP_NAMES={A:['果菜類','葉物・根菜','つる物','緑肥・休耕'],B:['豆類','果菜類','葉物・香味','根菜類']};
-function growthScale(){return .46+Math.min(10,STATE.growthYear)*.075}
 function densityFactor(){return STATE.density==='low'?.62:STATE.density==='lush'?1.38:1}
-function seasonLeafFactor(){return STATE.season==='winter'?.22:STATE.season==='spring'?.7:STATE.season==='autumn'?.76:1}
-function recolorPlant(root,baseIndex=0){const cs=SEASON_COLORS[STATE.season];root.traverse(o=>{if(o.material&&o.material.color&&o.geometry&&!(o.geometry.type||'').includes('Cylinder')){const previous=o.material,col=cs[(baseIndex+(o.id||0))%2];o.material=previous.clone();o.material.color.setHex(col);if(STATE.season==='winter')o.material.transparent=true,o.material.opacity=.55;if(!sharedMaterials.has(previous))previous.dispose()}})}
-function addSeasonDetails(group,t,index,scale){
- const flowers=(STATE.season==='spring'&&STATE.showFlowers&&['ウメ','ジューンベリー','ヤマボウシ'].includes(t.name));
- const fruits=(STATE.showFruit&&((STATE.season==='autumn'&&['カキ','キンカン','ユズ'].includes(t.name))||(STATE.season==='summer'&&['イチジク','ブルーベリー','甘夏'].includes(t.name))));
- const count=Math.round((flowers?10:fruits?8:0)*densityFactor());
- for(let k=0;k<count;k++){const a=k*2.399+index,r=(t.r*.25)+(k%3)*t.r*.16,y=(t.bush?.65:t.h+t.r*.45)+(k%4)*.13;const c=new THREE.Mesh(new THREE.SphereGeometry(flowers?.07:.095,6,5),new THREE.MeshStandardMaterial({color:flowers?0xf4d9dd:(t.name==='カキ'?0xe47a28:0xe1b43e),roughness:.8}));c.position.set(t.x+Math.cos(a)*r*scale,y*scale,t.z+Math.sin(a)*r*scale);group.add(c)}
+function buildTrees(){
+ clearRebuildGroup(groups.trees);clearRebuildGroup(groups.crowns);
+ DATA.trees.forEach((t,i)=>{
+  groups.trees.add(createPlantModel(t,i,{season:STATE.season,growthYear:STATE.growthYear,showFlowers:STATE.showFlowers,showFruit:STATE.showFruit,mode:STATE.mode},PLANTS,tag));
+  const rr=t.r*(.75+STATE.growthYear*.075),ring=new THREE.Mesh(new THREE.RingGeometry(rr*.97,rr,48),new THREE.MeshBasicMaterial({color:isEvergreenSpecies(t.name)?0x4f8b61:0x9ac277,transparent:true,opacity:.55,side:THREE.DoubleSide}));
+  ring.rotation.x=-Math.PI/2;ring.position.set(t.x,.13,t.z);groups.crowns.add(ring)
+ });
+ const crownsVisible=STATE.guides.crowns||STATE.mode==='plan';groups.crowns.visible=crownsVisible;document.querySelector('[data-guide="crowns"]')?.classList.toggle('on',crownsVisible)
 }
-function buildTrees(){clearRebuildGroup(groups.trees);clearRebuildGroup(groups.crowns);const gs=growthScale(),lf=seasonLeafFactor();DATA.trees.forEach((t,i)=>{const g=makeTreeModel(t,i);g.position.set(t.x,0,t.z);g.scale.set(gs,Math.max(.55,gs),gs);recolorPlant(g,i);g.traverse(o=>{if(o.material&&o.material.transparent!==undefined&&STATE.season==='winter'&&o.geometry?.type==='SphereGeometry')o.scale.multiplyScalar(lf)});groups.trees.add(g);addSeasonDetails(groups.trees,t,i,gs);const rr=t.r*(.75+STATE.growthYear*.075);const ring=new THREE.Mesh(new THREE.RingGeometry(rr*.97,rr,48),new THREE.MeshBasicMaterial({color:0x9ac277,transparent:true,opacity:.55,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.set(t.x,.13,t.z);groups.crowns.add(ring)});groups.crowns.visible=STATE.guides.crowns}
 function buildRotations(){clearRebuildGroup(groups.rotations);const density=densityFactor(),names=CROP_NAMES[STATE.cropPattern],soilMaterial=STATE.mode==='real'?GROUND.rotationSoil:GROUND.planSoil,ridgeMaterial=STATE.mode==='real'?GROUND.ridgeSoil:GROUND.planSoil;DATA.rotations.forEach((b,bi)=>{const patch=meshShape([{x:b.cx-b.w/2,z:b.cz-b.d/2},{x:b.cx+b.w/2,z:b.cz-b.d/2},{x:b.cx+b.w/2,z:b.cz+b.d/2},{x:b.cx-b.w/2,z:b.cz+b.d/2}],soilMaterial,.037);groups.rotations.add(tag(patch,{title:b.name+'｜'+names[bi],body:'季節・密度・輪作案を切り替えて完成景観を比較する区画。座標と区画寸法は固定です。',meta:[['作付',names[bi]],['寸法',`${b.w} × ${b.d}m`]]}));const n=Math.round(b.w/1.5);for(let i=0;i<n;i++){const x=b.cx-b.w/2+.75+i*(b.w-1.5)/(Math.max(1,n-1));groups.rotations.add(soilRidge(.75,b.d,ridgeMaterial,x,b.cz));const rows=Math.max(2,Math.round((b.d-.8)/(.75/density)));for(let j=0;j<rows;j++){const z=b.cz-(b.d-.8)/2+j*(b.d-.8)/Math.max(1,rows-1);if(STATE.season!=='winter'||bi===3)addPlantCluster(groups.rotations,x,z,SEASON_COLORS[STATE.season][bi%2],.12+.055*density,740+bi*200+i*30+j)}}})}
 function applyGrowthUI(){
  document.querySelectorAll('[data-season]').forEach(b=>b.classList.toggle('on',b.dataset.season===STATE.season));document.querySelectorAll('[data-density]').forEach(b=>b.classList.toggle('on',b.dataset.density===STATE.density));document.querySelectorAll('[data-crop]').forEach(b=>b.classList.toggle('on',b.dataset.crop===STATE.cropPattern));
@@ -221,7 +221,7 @@ function updateWalk(dt){if(cam.mode!=='walk')return;const speed=dt*.006,front=ne
 document.querySelectorAll('[data-season]').forEach(b=>b.onclick=()=>{STATE.season=b.dataset.season;rebuildGrowth()});document.querySelectorAll('[data-density]').forEach(b=>b.onclick=()=>{STATE.density=b.dataset.density;rebuildGrowth()});document.querySelectorAll('[data-crop]').forEach(b=>b.onclick=()=>{STATE.cropPattern=b.dataset.crop;rebuildGrowth()});
 $('growthYear').oninput=e=>{STATE.growthYear=+e.target.value;rebuildGrowth()};$('flowerBtn').onclick=()=>{STATE.showFlowers=!STATE.showFlowers;rebuildGrowth()};$('fruitBtn').onclick=()=>{STATE.showFruit=!STATE.showFruit;rebuildGrowth()};$('walkBtn').onclick=startWalk;$('walkExitBtn').onclick=$('mobileWalkExit').onclick=stopWalk;
 $('planABtn').onclick=()=>readPlan('A');$('planBBtn').onclick=()=>readPlan('B');$('savePlanBtn').onclick=savePlan;$('resetPlanBtn').onclick=()=>{plans=JSON.parse(JSON.stringify(PLAN_DEFAULTS));localStorage.removeItem('ryuka-v4-plans');readPlan(STATE.activePlan);toast('プランを初期化しました')};
-$('exportBtn').onclick=()=>{savePlan();const blob=new Blob([JSON.stringify({version:'4.3.0',plans},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ryuka-landscape-plans.json';a.click();URL.revokeObjectURL(a.href)};$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const q=JSON.parse(r.result);plans=q.plans||q;localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));readPlan('A');toast('設定を読み込みました')}catch{toast('設定ファイルを読み込めません')}};r.readAsText(f)};
+$('exportBtn').onclick=()=>{savePlan();const blob=new Blob([JSON.stringify({version:'4.4.0',plans},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ryuka-landscape-plans.json';a.click();URL.revokeObjectURL(a.href)};$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const q=JSON.parse(r.result);plans=q.plans||q;localStorage.setItem('ryuka-v4-plans',JSON.stringify(plans));readPlan('A');toast('設定を読み込みました')}catch{toast('設定ファイルを読み込めません')}};r.readAsText(f)};
 addEventListener('keydown',e=>{walk.keys[e.code]=true;if(e.code==='Escape'&&cam.mode==='walk')stopWalk()});addEventListener('keyup',e=>walk.keys[e.code]=false);
 renderer.domElement.addEventListener('pointerdown',e=>{if(cam.mode==='walk'&&!$('panel').classList.contains('open'))walk.drag={x:e.clientX,y:e.clientY}});addEventListener('pointermove',e=>{if(cam.mode==='walk'&&walk.drag){walk.yaw-=(e.clientX-walk.drag.x)*.005;walk.pitch=clamp(walk.pitch-(e.clientY-walk.drag.y)*.004,-.75,.75);walk.drag={x:e.clientX,y:e.clientY}}});addEventListener('pointerup',()=>walk.drag=null);addEventListener('pointercancel',()=>walk.drag=null);
 const joystick=$('joystick'),joystickKnob=$('joystickKnob');
@@ -237,7 +237,7 @@ const layerDefs=[['facilities','施設・作業ヤード','#9aa3ab'],['paths','�
 layerDefs.forEach(d=>{const b=document.createElement('button');b.className='layer-btn on';b.dataset.layer=d[0];b.innerHTML=`<span class="layer-row"><span class="layer-dot" style="background:${d[2]}"></span><span class="layer-label">${d[1]}</span><span class="switch"></span></span>`;$('layerList').appendChild(b);b.onclick=()=>{STATE.layers[d[0]]=!STATE.layers[d[0]];groups[d[0]].visible=STATE.layers[d[0]];b.classList.toggle('on',STATE.layers[d[0]])}});
 document.querySelectorAll('.panel-tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.panel-tabs button').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.panel-page').forEach(x=>x.classList.toggle('on',x.dataset.page===b.dataset.page))});
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>flyTo(b.dataset.view));
-document.querySelectorAll('[data-guide]').forEach(b=>b.onclick=()=>{const k=b.dataset.guide;STATE.guides[k]=!STATE.guides[k];b.classList.toggle('on',STATE.guides[k]);if(k==='labels')groups.labels.visible=STATE.guides.labels;if(k==='grid')gridGroup.visible=STATE.guides.grid;if(k==='boundary')boundaryObjects.forEach(x=>x.visible=STATE.guides.boundary);if(k==='crowns')groups.crowns.visible=STATE.guides.crowns});
+document.querySelectorAll('[data-guide]').forEach(b=>b.onclick=()=>{const k=b.dataset.guide;if(k==='crowns'&&STATE.mode==='plan'){groups.crowns.visible=true;b.classList.add('on');return}STATE.guides[k]=!STATE.guides[k];b.classList.toggle('on',STATE.guides[k]);if(k==='labels')groups.labels.visible=STATE.guides.labels;if(k==='grid')gridGroup.visible=STATE.guides.grid;if(k==='boundary')boundaryObjects.forEach(x=>x.visible=STATE.guides.boundary);if(k==='crowns')groups.crowns.visible=STATE.guides.crowns});
 $('fov').oninput=e=>{perspective.fov=+e.target.value;perspective.updateProjectionMatrix();$('fovOut').textContent=e.target.value+'°'};$('resetView').onclick=()=>flyTo('birdNE');
 $('doy').oninput=e=>{STATE.doy=+e.target.value;updateSun();buildSunPath()};$('tod').oninput=e=>{STATE.tod=+e.target.value;updateSun()};$('timelineRange').oninput=e=>{STATE.tod=+e.target.value;updateSun()};
 function togglePlay(){STATE.playing=!STATE.playing;$('playBtn').classList.toggle('on',STATE.playing);$('playBtn').textContent=STATE.playing?'⏸ 停止':'▶ 1日を再生';$('timelinePlay').textContent=STATE.playing?'Ⅱ':'▶'}$('playBtn').onclick=$('timelinePlay').onclick=togglePlay;
