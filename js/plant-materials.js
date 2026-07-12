@@ -25,8 +25,16 @@
       winterBlueberry: standard(0x7b493d),
       winterDryLeaf: standard(0x796447),
 
-      flowerWhite: standard(0xf3f0e4, 0.72),
-      flowerPink: standard(0xf2cbd1, 0.72),
+      flowerWhite: new THREE.MeshStandardMaterial({
+        color: 0xf3f0e4,
+        roughness: 0.72,
+        side: THREE.DoubleSide
+      }),
+      flowerPink: new THREE.MeshStandardMaterial({
+        color: 0xf2cbd1,
+        roughness: 0.72,
+        side: THREE.DoubleSide
+      }),
       flowerCore: standard(0xe3b43d, 0.72),
       fruitPurple: standard(0x593d61, 0.68),
       fruitBlue: standard(0x334d79, 0.65),
