@@ -1,5 +1,5 @@
-const CACHE = 'ryuka-landscape-v4-0-1-panel-overlap-fix-20260712';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './vendor/three.min.js'];
+const CACHE = 'ryuka-landscape-v4-1-0-foundation-20260712';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './vendor/three.min.js', './data/fixed-site-data.js', './js/app.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
   self.skipWaiting();
