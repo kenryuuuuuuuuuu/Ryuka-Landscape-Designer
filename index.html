@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Ryuka Landscape Designer v4.2.0</title><style>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Ryuka Landscape Designer v4.3.0</title><style>
 :root{
   --bg:#0b1115;--glass:rgba(17,25,29,.86);--glass2:rgba(28,39,43,.88);
   --line:rgba(255,255,255,.11);--ink:#f1eee6;--muted:#9dafad;
@@ -77,7 +77,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 <div id="scene"></div><div id="vignette"></div>
 
 <header id="topbar">
-  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.2.0 · 2026.07.12</span></div>
+  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.3.0 · 2026.07.12</span></div>
   <div class="top-actions">
     <div class="seg" id="modeSeg"><button data-mode="real" class="on">REAL</button><button data-mode="plan">PLAN</button></div>
     <button class="icon-btn" id="panelBtn" title="コントロール">☰</button>
@@ -171,7 +171,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 <div id="measureTip">地面を2点クリックしてください</div><div id="toast"></div>
 
 <div id="walkHelp"><span class="kbd">WASD</span> 移動　<span class="kbd">ドラッグ</span> 視点　<span class="kbd">Esc</span> 終了</div><div id="compareBadge">PLAN A｜夏・3年後・標準</div>
-<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/ground-materials.js"></script><script src="./js/app.js"></script>
+<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/ground-materials.js"></script><script src="./js/building-materials.js"></script><script src="./js/building-model.js"></script><script src="./js/app.js"></script>
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(console.warn));
