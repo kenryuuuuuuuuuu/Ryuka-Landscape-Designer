@@ -1,5 +1,5 @@
-const CACHE = 'ryuka-landscape-v4-5-0-atmosphere-rendering-20260712';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './vendor/three.min.js', './data/fixed-site-data.js', './js/ground-materials.js', './js/building-materials.js', './js/building-model.js', './js/plant-materials.js', './js/plant-models.js', './js/environment-materials.js', './js/environment-model.js', './js/app.js'];
+const CACHE = 'ryuka-landscape-v4-6-0-plant-layout-editor-20260713';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './vendor/three.min.js', './data/fixed-site-data.js', './js/ground-materials.js', './js/building-materials.js', './js/building-model.js', './js/plant-materials.js', './js/plant-models.js', './js/environment-materials.js', './js/environment-model.js', './js/design-state.js', './js/plant-editor.js', './js/app.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
   self.skipWaiting();
