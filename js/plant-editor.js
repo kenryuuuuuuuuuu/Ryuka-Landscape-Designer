@@ -13,7 +13,7 @@
   }
 
   function createPlantEditor(options) {
-    const { THREE, scene, renderer, data, designState, getCamera, getObjects, rebuild, toast, showInfo } = options;
+    const { THREE, scene, renderer, data, designState, getCamera, getObjects, rebuild, toast, showInfo, beforeBegin } = options;
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -42,6 +42,21 @@
     function setColor(state) {
       const color = COLORS[state] || COLORS.valid;
       ringMaterial.color.setHex(color); markerMaterial.color.setHex(color);
+    }
+    function setPreviewPosition(entry, x, z) {
+      if (entry?.group) {
+        entry.group.position.x = x;
+        entry.group.position.z = z;
+      }
+      if (entry?.crown) {
+        entry.crown.position.x = x;
+        entry.crown.position.z = z;
+      }
+      if (entry?.label) {
+        entry.label.position.x = x;
+        entry.label.position.z = z;
+      }
+      overlay.position.set(x, 0, z);
     }
     function snapValue(value, amount = snap) { return amount ? Math.round(value / amount) * amount : value; }
     function validation(plant, x, z) {
@@ -85,9 +100,12 @@
     }
     function deselect() { selectedId = null; drag = null; overlay.visible = origin.visible = false; document.body.classList.remove('plant-selected'); updateInfo(); }
     function begin() {
+      if (editing) return true;
+      if (beforeBegin?.() === false) return false;
       editing = true; document.body.classList.add('plant-editing'); document.getElementById('plantEditToggle')?.classList.add('on');
       const button = document.getElementById('plantEditToggle'); if (button) button.textContent = '編集モードを終了';
       toast('植栽編集モードを開始');
+      return true;
     }
     function end() {
       editing = false; deselect(); document.body.classList.remove('plant-editing'); document.getElementById('plantEditToggle')?.classList.remove('on');
@@ -107,20 +125,30 @@
     function rotate(delta) { const plant = plantById(selectedId); if (plant) commitPosition(selectedId, plant.x, plant.z, (plant.rotation || 0) + delta, '植栽を回転しました'); }
     function remove() { const plant = plantById(selectedId); if (!plant) return; if (plant.sourceType !== 'added') { toast('既存植栽は削除できません'); return; } const id = selectedId; designState.remove(id); refreshAfterMutation(null); toast('追加植栽を削除しました'); }
     function resetSelected() { const plant = plantById(selectedId); if (!plant) return; if (plant.sourceType !== 'base') { toast('追加植栽には元位置がありません'); return; } designState.resetPlant(selectedId); refreshAfterMutation(selectedId); toast('元位置へ戻しました'); }
-    function findNearby(plant, x, z) {
-      for (let radius = 1; radius <= 5; radius += 0.5) for (let i = 0; i < 16; i += 1) { const a = i / 16 * Math.PI * 2, px = snapValue(x + Math.cos(a) * radius), pz = snapValue(z + Math.sin(a) * radius); if (validation(plant, px, pz).state !== 'invalid') return { x: px, z: pz }; }
+    function findNearby(plant, x, z, origin = null) {
+      for (let radius = 0.5; radius <= 5; radius += 0.5) for (let i = 0; i < 16; i += 1) {
+        const a = i / 16 * Math.PI * 2, px = snapValue(x + Math.cos(a) * radius), pz = snapValue(z + Math.sin(a) * radius);
+        if (origin && Math.hypot(px - origin.x, pz - origin.z) < 0.5) continue;
+        if (validation(plant, px, pz).state !== 'invalid') return { x: px, z: pz };
+      }
       return null;
     }
     function duplicate() {
       const plant = plantById(selectedId); if (!plant) return;
-      const target = findNearby(plant, plant.x + 1, plant.z); if (!target) { toast('複製できる場所が見つかりません'); return; }
+      const candidate = { ...plant, designId: `duplicate-candidate-${plant.designId}`, sourceType: 'added', basePosition: null };
+      const preferred = { x: snapValue(plant.x + 1), z: snapValue(plant.z) };
+      const preferredIsSeparate = Math.hypot(preferred.x - plant.x, preferred.z - plant.z) >= 0.5;
+      const target = preferredIsSeparate && validation(candidate, preferred.x, preferred.z).state !== 'invalid'
+        ? preferred
+        : findNearby(candidate, preferred.x, preferred.z, plant);
+      if (!target) { toast('複製できる場所が見つかりません'); return; }
       const id = designState.add(plant.name, target, undefined, plant); refreshAfterMutation(id); toast('植栽を複製しました');
     }
     function addSpecies(name) {
       const profile = PLANT_CATALOG.find(item => item.name === name); if (!profile) return;
+      if (!editing && !begin()) return;
       const center = options.getViewCenter?.() || { x: 0, z: 8 };
       const target = findNearby({ ...profile, designId: '' }, center.x, center.z); if (!target) { toast('追加できる場所が見つかりません'); return; }
-      if (!editing) begin();
       const id = designState.add(name, target); refreshAfterMutation(id); toast(`${name}を追加しました`);
     }
     function performUndo(redo = false) { if ((redo ? designState.redo() : designState.undo())) { refreshAfterMutation(selectedId); toast(redo ? 'やり直しました' : '元に戻しました'); } }
@@ -150,16 +178,23 @@
       rayFromEvent(event); if (!raycaster.ray.intersectPlane(plane, hit)) return;
       const entry = getObjects().get(drag.id), plant = plantById(drag.id); if (!entry || !plant) return;
       const x = snapValue(hit.x + drag.offset.x), z = snapValue(hit.z + drag.offset.z), check = validation(plant, x, z);
-      entry.group.position.x = x; entry.group.position.z = z; entry.crown && entry.crown.position.set(x, entry.crown.position.y, z); entry.label && entry.label.position.set(x, entry.label.position.y, z);
+      setPreviewPosition(entry, x, z);
       if (check.state !== 'invalid') drag.lastValid = { x, z };
-      overlay.position.set(x, 0, z); setColor(check.state); updateInfo(check); event.preventDefault(); event.stopPropagation();
+      setColor(check.state); updateInfo(check); event.preventDefault(); event.stopPropagation();
     }
     function finishDrag(cancelled) {
       if (!drag) return;
-      const entry = getObjects().get(drag.id), plant = plantById(drag.id), target = cancelled ? drag.start : drag.lastValid;
-      if (entry) entry.group.position.set(target.x, entry.group.position.y, target.z);
-      const changed = !cancelled && Math.hypot(target.x - drag.start.x, target.z - drag.start.z) > 1e-6;
-      const id = drag.id, rotation = plant?.rotation || drag.start.rotation; drag = null;
+      const activeDrag = drag, entry = getObjects().get(activeDrag.id), plant = plantById(activeDrag.id), target = cancelled ? activeDrag.start : activeDrag.lastValid;
+      setPreviewPosition(entry, target.x, target.z);
+      const restoredStatus = plant ? validation(plant, target.x, target.z) : { state: 'valid', message: '' };
+      setColor(restoredStatus.state); updateInfo(restoredStatus);
+      try {
+        if (renderer.domElement.hasPointerCapture?.(activeDrag.pointerId)) renderer.domElement.releasePointerCapture(activeDrag.pointerId);
+      } catch (error) {
+        console.debug('[Ryuka] pointer captureは既に解放されています', error);
+      }
+      const changed = !cancelled && Math.hypot(target.x - activeDrag.start.x, target.z - activeDrag.start.z) > 1e-6;
+      const id = activeDrag.id, rotation = plant?.rotation || activeDrag.start.rotation; drag = null;
       if (changed) commitPosition(id, target.x, target.z, rotation); else syncOverlay();
     }
     function onPointerUp(event) { if (drag && event.pointerId === drag.pointerId) { finishDrag(false); event.preventDefault(); event.stopPropagation(); } }
@@ -179,7 +214,7 @@
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { capture: true });
     renderer.domElement.addEventListener('pointermove', onPointerMove, { capture: true });
     renderer.domElement.addEventListener('pointerup', onPointerUp, { capture: true });
-    renderer.domElement.addEventListener('pointercancel', () => finishDrag(true), { capture: true });
+    renderer.domElement.addEventListener('pointercancel', event => { if (drag && event.pointerId === drag.pointerId) { finishDrag(true); event.preventDefault(); event.stopPropagation(); } }, { capture: true });
     global.addEventListener('keydown', onKeyDown, { capture: true });
 
     return { isEditing: () => editing, get selectedId() { return selectedId; }, begin, end, select, deselect, move, rotate, remove, duplicate, resetSelected, addSpecies, undo: () => performUndo(false), redo: () => performUndo(true), resetPlan, isValid: (plant, x, z) => validation(plant, x, z).state !== 'invalid', setSnap(value) { snap = Number(value) || 0; }, refresh() { syncOverlay(); updateButtons(); }, beforeRebuild() { overlay.visible = origin.visible = false; }, afterRebuild() { if (selectedId && getObjects().has(selectedId)) syncOverlay(); else deselect(); updateButtons(); } };
