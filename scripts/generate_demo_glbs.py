@@ -29,12 +29,12 @@ def box(store, material, center, size, bevel=0.0):
     top = [(x * (sx - 2 * inset) / sx, z * (sz - 2 * inset) / sz) for x, z in rings]
     faces = []
     faces.append(([(rings[i][0], y0, rings[i][1]) for i in range(4)], (0, -1, 0)))
-    faces.append(([(top[i][0], y1, top[i][1]) for i in range(4)], (0, 1, 0)))
+    faces.append(([(top[i][0], y1, top[i][1]) for i in reversed(range(4))], (0, 1, 0)))
     normals = [(0, 0, -1), (1, 0, 0), (0, 0, 1), (-1, 0, 0)]
     for i in range(4):
         j = (i + 1) % 4
-        faces.append(([(rings[i][0], y0, rings[i][1]), (rings[j][0], y0, rings[j][1]),
-                       (top[j][0], y1, top[j][1]), (top[i][0], y1, top[i][1])], normals[i]))
+        faces.append(([(rings[i][0], y0, rings[i][1]), (top[i][0], y1, top[i][1]),
+                       (top[j][0], y1, top[j][1]), (rings[j][0], y0, rings[j][1])], normals[i]))
     mesh = store.setdefault(material, {"positions": [], "normals": [], "indices": []})
     for vertices, normal in faces:
         start = len(mesh["positions"])
@@ -93,7 +93,33 @@ def align4(data, pad=b"\x00"):
     return data + pad * ((-len(data)) % 4)
 
 
+def validate_winding(store):
+    """Assert every indexed triangle faces in the direction of its NORMAL."""
+    for material, data in store.items():
+        positions = data["positions"]
+        normals = data["normals"]
+        indices = data["indices"]
+        assert len(indices) % 3 == 0
+        for offset in range(0, len(indices), 3):
+            triangle = indices[offset:offset + 3]
+            a, b, c = (positions[index] for index in triangle)
+            ab = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+            ac = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+            geometric = (
+                ab[1] * ac[2] - ab[2] * ac[1],
+                ab[2] * ac[0] - ab[0] * ac[2],
+                ab[0] * ac[1] - ab[1] * ac[0]
+            )
+            magnitude_sq = sum(component * component for component in geometric)
+            assert magnitude_sq > 1e-18, f"degenerate triangle in {material} at {offset // 3}"
+            for index in triangle:
+                normal = normals[index]
+                dot = sum(geometric[axis] * normal[axis] for axis in range(3))
+                assert dot > 1e-12, f"inward winding in {material} at {offset // 3}: dot={dot}"
+
+
 def make_glb(name, store):
+    validate_winding(store)
     binary = bytearray()
     views, accessors, primitives = [], [], []
     materials = []
@@ -134,6 +160,21 @@ def make_glb(name, store):
     return struct.pack("<4sII", b"glTF", 2, total) + struct.pack("<I4s", len(encoded), b"JSON") + encoded + struct.pack("<I4s", len(binary), b"BIN\x00") + binary
 
 
+def read_accessor(doc, binary, accessor_index):
+    accessor = doc["accessors"][accessor_index]
+    view = doc["bufferViews"][accessor["bufferView"]]
+    component_format, component_size = {5123: ("H", 2), 5126: ("f", 4)}[accessor["componentType"]]
+    width = {"SCALAR": 1, "VEC3": 3}[accessor["type"]]
+    element_size = component_size * width
+    stride = view.get("byteStride", element_size)
+    start = view.get("byteOffset", 0) + accessor.get("byteOffset", 0)
+    values = []
+    for index in range(accessor["count"]):
+        value = struct.unpack_from("<" + component_format * width, binary, start + index * stride)
+        values.append(value[0] if width == 1 else value)
+    return values
+
+
 def validate_glb(path):
     raw = path.read_bytes()
     magic, version, declared = struct.unpack_from("<4sII", raw)
@@ -145,13 +186,38 @@ def validate_glb(path):
     bin_header = 20 + json_len
     bin_len, bin_type = struct.unpack_from("<I4s", raw, bin_header)
     assert bin_type == b"BIN\x00"
+    binary = raw[bin_header + 8:bin_header + 8 + bin_len]
     for accessor in doc["accessors"]:
         view = doc["bufferViews"][accessor["bufferView"]]
         component = {5123: 2, 5126: 4}[accessor["componentType"]]
         width = {"SCALAR": 1, "VEC3": 3}[accessor["type"]]
         assert view.get("byteOffset", 0) + accessor.get("byteOffset", 0) + accessor["count"] * component * width <= bin_len
+    triangle_count = 0
+    for material in doc["materials"]:
+        assert not material.get("doubleSided", False)
+    for mesh in doc["meshes"]:
+        for primitive in mesh["primitives"]:
+            positions = read_accessor(doc, binary, primitive["attributes"]["POSITION"])
+            normals = read_accessor(doc, binary, primitive["attributes"]["NORMAL"])
+            indices = read_accessor(doc, binary, primitive["indices"])
+            assert len(indices) % 3 == 0
+            for offset in range(0, len(indices), 3):
+                triangle = indices[offset:offset + 3]
+                a, b, c = (positions[index] for index in triangle)
+                ab = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+                ac = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+                geometric = (
+                    ab[1] * ac[2] - ab[2] * ac[1],
+                    ab[2] * ac[0] - ab[0] * ac[2],
+                    ab[0] * ac[1] - ab[1] * ac[0]
+                )
+                assert sum(component * component for component in geometric) > 1e-18
+                for index in triangle:
+                    assert sum(geometric[axis] * normals[index][axis] for axis in range(3)) > 1e-12
+                triangle_count += 1
+    assert triangle_count > 0
     assert len(raw) < 150 * 1024
-    return hashlib.sha256(raw).hexdigest()
+    return hashlib.sha256(raw).hexdigest(), triangle_count
 
 
 def main():
@@ -162,8 +228,8 @@ def main():
         for variant in ("high", "low"):
             path = OUT / f"{name}-{variant}.glb"
             path.write_bytes(make_glb(name, builder(variant == "high")))
-            hashes[path.name] = validate_glb(path)
-            print(f"PASS {path.name}: {path.stat().st_size} bytes {hashes[path.name]}")
+            hashes[path.name], triangles = validate_glb(path)
+            print(f"PASS {path.name}: {path.stat().st_size} bytes, {triangles} outward triangles, {hashes[path.name]}")
     assert sum(path.stat().st_size for path in OUT.glob("*.glb")) < 1024 * 1024
 
 

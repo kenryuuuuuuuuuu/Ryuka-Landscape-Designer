@@ -117,7 +117,7 @@ function updateAssetStatus(status){
  el.textContent=status.failed?`3Dアセット 一部失敗（準備完了 ${status.ready} / ${status.total}）`:STATE.mode==='plan'||STATE.modelDetail==='simple'?`3Dアセット 簡易表示中（準備完了 ${status.ready} / ${status.total}）`:status.loading?`3Dアセット 読み込み中 ${status.ready} / ${status.total}`:status.ready===status.total?`3Dアセット 準備完了 ${status.ready} / ${status.total}`:`3Dアセット 読み込み前 ${status.ready} / ${status.total}`;
  document.body.dataset.assetReady=String(status.ready);document.body.dataset.assetFailed=String(status.failed);document.body.dataset.assetFallback=String(fallback)
 }
-let lastAppliedAssetSignature='';ASSET_MANAGER.onStatusChange(status=>{updateAssetStatus(status);const signature=`${status.ready}:${status.failed}`;if(status.loading===0&&status.ready+status.failed===status.total&&signature!==lastAppliedAssetSignature){lastAppliedAssetSignature=signature;registerAssetSharedResources();if(shouldUseDetailedAsset())scheduleAssetBackedRebuild()}});
+let lastAppliedAssetSignature='';ASSET_MANAGER.onStatusChange(status=>{registerAssetSharedResources();updateAssetStatus(status);const signature=`${status.ready}:${status.failed}`;if(status.loading===0&&status.ready+status.failed===status.total&&signature!==lastAppliedAssetSignature){lastAppliedAssetSignature=signature;if(shouldUseDetailedAsset())scheduleAssetBackedRebuild()}});
 
 // ---------- sky, lights, context ----------
 const ENVIRONMENT=createEnvironmentModel({scene,renderer,materials:ENVIRONMENT_MATERIALS,groundMaterial:MATS.surrounding,asphaltMaterial:GROUND.asphalt,data:DATA});
