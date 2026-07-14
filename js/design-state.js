@@ -16,6 +16,28 @@
   const clone = value => JSON.parse(JSON.stringify(value));
   const finite = value => Number.isFinite(Number(value));
   const safeCoordinate = value => finite(value) && Math.abs(Number(value)) <= 1000;
+  const OBJECT_LAYERS = new Set(global.OBJECT_ALLOWED_LAYERS || ['facilities', 'guestBeds', 'herbs', 'lawn']);
+
+  function normalizeRotation(value) {
+    const twoPi = Math.PI * 2;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return ((numeric + Math.PI) % twoPi + twoPi) % twoPi - Math.PI;
+  }
+
+  function allowedSize(profile, item = {}) {
+    const presets = profile.sizePresets || { 'catalog-default': [profile.width, profile.depth, profile.height] };
+    let preset = typeof item.sizePreset === 'string' && presets[item.sizePreset] ? item.sizePreset : null;
+    if (!preset && finite(item.width) && finite(item.depth) && finite(item.height)) {
+      preset = Object.keys(presets).find(key => {
+        const size = presets[key];
+        return Math.abs(Number(item.width) - size[0]) < 1e-6 && Math.abs(Number(item.depth) - size[1]) < 1e-6 && Math.abs(Number(item.height) - size[2]) < 1e-6;
+      }) || null;
+    }
+    preset ||= 'catalog-default';
+    const size = presets[preset] || [profile.width, profile.depth, profile.height];
+    return { sizePreset: preset, width: size[0], depth: size[1], height: size[2] };
+  }
 
   function uuid() {
     if (global.crypto?.randomUUID) return `added-${global.crypto.randomUUID()}`;
@@ -45,7 +67,7 @@
       Object.entries(value.overrides).forEach(([id, item]) => {
         if (!baseIds.has(id) || !item || !safeCoordinate(item.x) || !safeCoordinate(item.z)) return;
         layout.overrides[id] = {
-          x: Number(item.x), z: Number(item.z), rotation: finite(item.rotation) ? Number(item.rotation) : 0
+          x: Number(item.x), z: Number(item.z), rotation: normalizeRotation(item.rotation)
         };
       });
     }
@@ -56,13 +78,15 @@
       let id = typeof item.id === 'string' && item.id.startsWith('added-object-') ? item.id : objectUuid();
       if (ids.has(id)) id = objectUuid();
       ids.add(id);
+      const size = allowedSize(profile, item);
       layout.additions.push({
         id, type: profile.type, label: profile.label, x: Number(item.x), z: Number(item.z),
-        rotation: finite(item.rotation) ? Number(item.rotation) : 0,
-        width: finite(item.width) && Number(item.width) > 0.1 && Number(item.width) < 20 ? Number(item.width) : profile.width,
-        depth: finite(item.depth) && Number(item.depth) > 0.1 && Number(item.depth) < 20 ? Number(item.depth) : profile.depth,
-        height: finite(item.height) && Number(item.height) > 0.05 && Number(item.height) < 20 ? Number(item.height) : profile.height,
-        clearance: profile.clearance, footprint: profile.footprint || 'box'
+        rotation: normalizeRotation(item.rotation), layer: OBJECT_LAYERS.has(item.layer) ? item.layer : profile.defaultLayer,
+        category: profile.category, ...size,
+        clearance: profile.clearance, footprint: profile.footprint || 'box',
+        bedKind: profile.type === 'raised-bed' ? (size.sizePreset === 'herb-bed' ? 'herb' : 'guest') : undefined,
+        seed: profile.type === 'raised-bed' && finite(item.seed) ? Number(item.seed) : undefined,
+        doorOffsetZ: profile.type === 'tool-shed' && finite(item.doorOffsetZ) ? Number(item.doorOffsetZ) : profile.doorOffsetZ
       });
     });
     return layout;
@@ -75,7 +99,7 @@
       Object.entries(value.overrides).forEach(([id, item]) => {
         if (!/^base-tree-\d+$/.test(id) || !item || !safeCoordinate(item.x) || !safeCoordinate(item.z)) return;
         layout.overrides[id] = {
-          x: Number(item.x), z: Number(item.z), rotation: finite(item.rotation) ? Number(item.rotation) : 0
+          x: Number(item.x), z: Number(item.z), rotation: normalizeRotation(item.rotation)
         };
       });
     }
@@ -91,7 +115,7 @@
         r: finite(item.r) && Number(item.r) > 0 && Number(item.r) < 20 ? Number(item.r) : profile.r,
         h: finite(item.h) && Number(item.h) >= 0 && Number(item.h) < 50 ? Number(item.h) : profile.h,
         bush: typeof item.bush === 'boolean' ? item.bush : profile.bush,
-        rotation: finite(item.rotation) ? Number(item.rotation) : 0
+        rotation: normalizeRotation(item.rotation)
       });
     });
     return layout;
@@ -99,7 +123,7 @@
 
   function createDesignState({ baseTrees, baseObjects = [], defaults, storageKey = 'ryuka-v4-plans' }) {
     const base = baseTrees.map((tree, index) => Object.freeze({ ...tree, designId: `base-tree-${index}` }));
-    const objectBase = baseObjects.map(object => Object.freeze({ ...object, designId: object.designId || object.id }));
+    const objectBase = baseObjects.map(object => Object.freeze({ ...object, designId: object.designId || object.id, baseRotation: normalizeRotation(object.baseRotation ?? object.rotation) }));
     const objectBaseIds = new Set(objectBase.map(object => object.designId));
     const history = { A: { undo: [], redo: [] }, B: { undo: [], redo: [] } };
     const objectHistory = { A: { undo: [], redo: [] }, B: { undo: [], redo: [] } };
@@ -168,12 +192,12 @@
         const x = finite(override.x) ? Number(override.x) : object.x;
         const z = finite(override.z) ? Number(override.z) : object.z;
         return {
-          ...object, x, z, rotation: finite(override.rotation) ? Number(override.rotation) : object.rotation || 0,
-          sourceType: 'base', basePosition: { x: object.x, z: object.z }, currentPosition: { x, z }
+          ...object, x, z, rotation: override.rotation === undefined ? object.baseRotation : normalizeRotation(override.rotation),
+          sourceType: 'base', baseRotation: object.baseRotation, basePosition: { x: object.x, z: object.z }, currentPosition: { x, z }
         };
       });
       return existing.concat(layout.additions.map(object => ({
-        ...object, designId: object.id, sourceType: 'added', layer: 'facilities',
+        ...object, designId: object.id, sourceType: 'added', baseRotation: null,
         basePosition: null, currentPosition: { x: object.x, z: object.z }
       })));
     }
@@ -209,24 +233,31 @@
     }
     function updateObject(id, patch, key = activePlan) {
       const original = objectBase.find(object => object.designId === id);
+      const safePatch = { ...patch };
+      if ('rotation' in safePatch) safePatch.rotation = normalizeRotation(safePatch.rotation);
       mutateObject(layout => {
         if (original) {
-          const next = { ...(layout.overrides[id] || {}), ...patch };
-          if (Math.hypot(Number(next.x) - original.x, Number(next.z) - original.z) < 1e-6 && Math.abs(Number(next.rotation || 0) - Number(original.rotation || 0)) < 1e-6) delete layout.overrides[id];
+          const next = { ...(layout.overrides[id] || {}), ...safePatch };
+          if (Math.hypot(Number(next.x) - original.x, Number(next.z) - original.z) < 1e-6 && Math.abs(normalizeRotation(next.rotation) - original.baseRotation) < 1e-6) delete layout.overrides[id];
           else layout.overrides[id] = next;
         } else {
           const object = layout.additions.find(item => item.id === id);
-          if (object) Object.assign(object, patch);
+          if (object) Object.assign(object, safePatch);
         }
       }, key);
     }
     function addObject(type, position, key = activePlan, source = null) {
       const profile = global.OBJECT_CATALOG_BY_TYPE?.get(type);
       if (!profile) return null;
+      const size = allowedSize(profile, source || {});
       const item = {
         id: objectUuid(), type, label: source?.label || profile.label, x: Number(position.x), z: Number(position.z),
-        rotation: Number(source?.rotation) || 0, width: Number(source?.width) || profile.width, depth: Number(source?.depth) || profile.depth,
-        height: Number(source?.height) || profile.height, clearance: Number(source?.clearance) || profile.clearance, footprint: source?.footprint || profile.footprint || 'box'
+        rotation: normalizeRotation(source?.rotation), layer: OBJECT_LAYERS.has(source?.layer) ? source.layer : profile.defaultLayer,
+        category: profile.category, ...size,
+        clearance: profile.clearance, footprint: profile.footprint || 'box',
+        bedKind: type === 'raised-bed' ? (size.sizePreset === 'herb-bed' ? 'herb' : (source?.bedKind || 'guest')) : undefined,
+        seed: type === 'raised-bed' ? (finite(source?.seed) ? Number(source.seed) : 500) : undefined,
+        doorOffsetZ: type === 'tool-shed' ? (finite(source?.doorOffsetZ) ? Number(source.doorOffsetZ) : profile.doorOffsetZ) : undefined
       };
       mutateObject(layout => layout.additions.push(item), key);
       return item.id;
@@ -318,10 +349,10 @@
         Object.keys(layout.overrides).forEach(id => {
           const index = Number(id.slice('base-tree-'.length));
           const original = base[index], override = layout.overrides[id];
-          if (!original || !validate({ ...original, ...override, sourceType: 'base', basePosition: { x: original?.x, z: original?.z } }, override.x, override.z)) { delete layout.overrides[id]; removed += 1; }
+          if (!original || !validate({ ...original, ...override, sourceType: 'base', basePosition: { x: original?.x, z: original?.z } }, override.x, override.z, key)) { delete layout.overrides[id]; removed += 1; }
         });
         layout.additions = layout.additions.filter(item => {
-          const valid = validate({ ...item, designId: item.id, sourceType: 'added', basePosition: null }, item.x, item.z);
+          const valid = validate({ ...item, designId: item.id, sourceType: 'added', basePosition: null }, item.x, item.z, key);
           if (!valid) removed += 1;
           return valid;
         });
@@ -331,14 +362,18 @@
     }
     function cleanInvalidObjects(validate) {
       let removed = 0;
+      const contexts = {
+        A: { objects: resolveObjects('A'), plants: resolve('A') },
+        B: { objects: resolveObjects('B'), plants: resolve('B') }
+      };
       ['A', 'B'].forEach(key => {
         const layout = plans[key].objectLayout;
         Object.keys(layout.overrides).forEach(id => {
           const original = objectBase.find(object => object.designId === id), override = layout.overrides[id];
-          if (!original || !validate({ ...original, ...override, sourceType: 'base', basePosition: { x: original?.x, z: original?.z } }, override.x, override.z, override.rotation || 0)) { delete layout.overrides[id]; removed += 1; }
+          if (!original || !validate({ ...original, ...override, sourceType: 'base', basePosition: { x: original?.x, z: original?.z }, baseRotation: original?.baseRotation }, override.x, override.z, normalizeRotation(override.rotation), key, contexts[key])) { delete layout.overrides[id]; removed += 1; }
         });
         layout.additions = layout.additions.filter(item => {
-          const valid = validate({ ...item, designId: item.id, sourceType: 'added', basePosition: null }, item.x, item.z, item.rotation || 0);
+          const valid = validate({ ...item, designId: item.id, sourceType: 'added', basePosition: null, baseRotation: null }, item.x, item.z, normalizeRotation(item.rotation), key, contexts[key]);
           if (!valid) removed += 1;
           return valid;
         });
@@ -363,5 +398,6 @@
   }
 
   global.PLANT_CATALOG = CATALOG;
+  global.normalizeDesignRotation = normalizeRotation;
   global.createDesignState = createDesignState;
 })(window);
