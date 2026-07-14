@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="mobile-web-app-capable" content="yes"><link rel="icon" href="./icon.svg"><title>Ryuka Landscape Designer v4.6.0</title><style>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="mobile-web-app-capable" content="yes"><link rel="icon" href="./icon.svg"><title>Ryuka Landscape Designer v4.7.0</title><style>
 :root{
   --bg:#0b1115;--glass:rgba(17,25,29,.86);--glass2:rgba(28,39,43,.88);
   --line:rgba(255,255,255,.11);--ink:#f1eee6;--muted:#9dafad;
@@ -81,7 +81,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 <div id="scene"></div><div id="vignette"></div>
 
 <header id="topbar">
-  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.6.0 · 2026.07.13</span></div>
+  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.7.0 · 2026.07.14</span></div>
   <div class="top-actions">
     <div class="seg" id="modeSeg"><button data-mode="real" class="on">REAL</button><button data-mode="plan">PLAN</button></div>
     <button class="icon-btn" id="panelBtn" title="コントロール">☰</button>
@@ -127,6 +127,8 @@ body.walking #timeline,body.walking #compareBadge{display:none}
     </div>
     <div class="section"><h3>ATMOSPHERE</h3>
       <div class="section-note" style="margin:0 0 6px">描画品質</div><div class="choice-grid three" id="qualityChoices"><button class="choice on" data-quality="auto">AUTO</button><button class="choice" data-quality="high">HIGH</button><button class="choice" data-quality="low">LOW</button></div>
+      <div class="section-note" style="margin:9px 0 6px">3Dモデル</div><div class="choice-grid three" id="modelDetailChoices"><button class="choice on" data-model-detail="auto">AUTO</button><button class="choice" data-model-detail="detailed">詳細</button><button class="choice" data-model-detail="simple">簡易</button></div>
+      <div class="section-note" id="assetStatus" role="status" aria-live="polite" style="margin-top:7px">3Dアセット 読み込み前</div>
       <div class="range-row"><label>露出</label><input id="exposure" type="range" min="70" max="150" value="105"><output id="exposureOut">1.05</output></div>
       <div class="range-row"><label>影</label><input id="shadowSoft" type="range" min="0" max="100" value="72"><output id="shadowOut">72%</output></div>
       <button class="action on" id="contextBtn">周辺景観を表示</button>
@@ -186,7 +188,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 
 <div id="walkHelp"><span class="kbd">WASD</span> 移動　<span class="kbd">ドラッグ</span> 視点　<span class="kbd">Esc</span> 終了</div><div id="compareBadge">PLAN A｜夏・3年後・標準</div>
 <div id="plantEditPad" aria-label="植栽編集パッド"><button data-plant-action="left">←</button><button data-plant-action="up">↑</button><button data-plant-action="down">↓</button><button data-plant-action="right">→</button><button data-plant-action="rotate-left">↶</button><button data-plant-action="rotate-right">↷</button><button data-plant-action="reset">戻</button><button data-plant-action="duplicate">複</button><button data-plant-action="delete">削</button></div>
-<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/ground-materials.js"></script><script src="./js/building-materials.js"></script><script src="./js/building-model.js"></script><script src="./js/plant-materials.js"></script><script src="./js/plant-models.js"></script><script src="./js/environment-materials.js"></script><script src="./js/environment-model.js"></script><script src="./js/design-state.js"></script><script src="./js/plant-editor.js"></script><script src="./js/app.js"></script>
+<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./vendor/GLTFLoader.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/ground-materials.js"></script><script src="./js/building-materials.js"></script><script src="./js/building-model.js"></script><script src="./js/plant-materials.js"></script><script src="./js/plant-models.js"></script><script src="./js/environment-materials.js"></script><script src="./js/environment-model.js"></script><script src="./js/design-state.js"></script><script src="./js/plant-editor.js"></script><script src="./js/asset-catalog.js"></script><script src="./js/asset-loader.js"></script><script src="./js/app.js"></script>
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(console.warn));
