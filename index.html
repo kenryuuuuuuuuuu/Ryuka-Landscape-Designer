@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="mobile-web-app-capable" content="yes"><link rel="icon" href="./icon.svg"><title>Ryuka Landscape Designer v4.7.0</title><style>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="mobile-web-app-capable" content="yes"><link rel="icon" href="./icon.svg"><title>Ryuka Landscape Designer v4.8.0</title><style>
 :root{
   --bg:#0b1115;--glass:rgba(17,25,29,.86);--glass2:rgba(28,39,43,.88);
   --line:rgba(255,255,255,.11);--ink:#f1eee6;--muted:#9dafad;
@@ -47,7 +47,8 @@ button,input{font:inherit} button{touch-action:manipulation}
 #mobileHandle{display:none}
 .plant-catalog{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.plant-card{border:1px solid var(--line);border-radius:10px;padding:8px;background:rgba(255,255,255,.03);font-size:9px;color:var(--muted)}.plant-card strong{display:block;color:var(--ink);font-size:11px;margin-bottom:3px}.plant-card button{width:100%;margin-top:6px;text-align:center;min-height:32px}.plant-select{width:100%;min-height:38px;border:1px solid var(--line);border-radius:10px;background:#202c31;color:var(--ink);padding:7px}.plant-info{display:flex;flex-direction:column;gap:4px;margin-top:8px}.plant-info strong{font-size:12px}.plant-info span{font-size:9px;color:var(--muted)}.plant-info em{font-size:9px;color:#f2c94c;font-style:normal}.action:disabled{opacity:.38;cursor:default}
 #plantEditPad{display:none;position:fixed;left:50%;bottom:132px;transform:translateX(-50%);z-index:35;background:var(--glass);border:1px solid var(--line);border-radius:16px;padding:8px;grid-template-columns:repeat(5,42px);gap:5px;box-shadow:var(--shadow)}#plantEditPad button{height:40px;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.07);color:var(--ink);font-size:14px}body.plant-editing.plant-selected #plantEditPad{display:grid}body.plant-editing #mobileWalkControls{display:none!important}
-body.panel-open #plantEditPad{display:none!important}
+#objectEditPad{display:none;position:fixed;left:50%;bottom:132px;transform:translateX(-50%);z-index:35;background:var(--glass);border:1px solid var(--line);border-radius:16px;padding:8px;grid-template-columns:repeat(5,42px);gap:5px;box-shadow:var(--shadow)}#objectEditPad button{height:40px;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.07);color:var(--ink);font-size:14px}body.object-editing.object-selected #objectEditPad{display:grid}body.object-editing #mobileWalkControls,body.object-editing #plantEditPad{display:none!important}body.plant-editing #objectEditPad{display:none!important}
+body.panel-open #plantEditPad,body.panel-open #objectEditPad{display:none!important}
 
 @media(max-width:820px){
  #topbar{left:10px;right:10px;top:10px;height:48px}.brand{min-width:0;padding:8px 11px}.brand small{font-size:7px}.brand strong{font-size:11px}.top-actions .seg{display:none}.icon-btn{width:34px;height:34px}
@@ -60,7 +61,7 @@ body.panel-open #plantEditPad{display:none!important}
  #panel.open~#timeline,#panel.open~#walkHelp,#panel.open~#compareBadge,#panel.open~#mobileWalkControls{display:none!important;pointer-events:none!important;visibility:hidden!important}
 }
 @media(max-width:430px){#inspector{display:none}.brand strong{font-size:10px}}
-@media(min-width:821px){#plantEditPad{display:none!important}}
+@media(min-width:821px){#plantEditPad,#objectEditPad{display:none!important}}
 
 /* v4 additions */
 .choice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.choice-grid.three{grid-template-columns:repeat(3,1fr)}
@@ -81,7 +82,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 <div id="scene"></div><div id="vignette"></div>
 
 <header id="topbar">
-  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.7.0 · 2026.07.14</span></div>
+  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.8.0 · 2026.07.14</span></div>
   <div class="top-actions">
     <div class="seg" id="modeSeg"><button data-mode="real" class="on">REAL</button><button data-mode="plan">PLAN</button></div>
     <button class="icon-btn" id="panelBtn" title="コントロール">☰</button>
@@ -155,6 +156,15 @@ body.walking #timeline,body.walking #compareBadge{display:none}
   </section>
 
   <section class="panel-page" data-page="tools">
+    <div class="section"><h3>OUTDOOR OBJECT EDITOR</h3>
+      <button class="action" id="objectEditToggle">外構編集を開始</button>
+      <div class="grid2" style="margin-top:7px"><button class="action" id="objectUndoBtn">元に戻す</button><button class="action" id="objectRedoBtn">やり直す</button></div>
+      <label class="section-note" for="objectSnap">スナップ幅</label><select class="plant-select" id="objectSnap"><option value="0">なし</option><option value="0.25" selected>0.25m</option><option value="0.5">0.5m</option><option value="1">1.0m</option></select>
+      <div class="data-card plant-info" id="objectSelectedInfo"><span>設備・家具を選択してください</span></div>
+      <div class="grid2" style="margin-top:7px"><button class="action" id="objectResetSelectedBtn">元位置へ戻す</button><button class="action" id="objectDuplicateBtn">複製</button><button class="action" id="objectDeleteBtn">削除</button><button class="action" id="objectPlanResetBtn">外構を初期化</button></div>
+      <details style="margin-top:10px"><summary class="action">設備・家具を追加</summary><div class="plant-catalog" id="objectCatalog"></div></details>
+      <p class="section-note">PCはドラッグ・矢印キー、スマホは編集パッドで移動できます。既存設備は固定データを変更せず、プラン差分だけを保存します。</p>
+    </div>
     <div class="section"><h3>PLANT LAYOUT EDITOR</h3>
       <button class="action" id="plantEditToggle">編集モードを開始</button>
       <div class="grid2" style="margin-top:7px"><button class="action" id="plantUndoBtn">元に戻す</button><button class="action" id="plantRedoBtn">やり直す</button></div>
@@ -188,7 +198,8 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 
 <div id="walkHelp"><span class="kbd">WASD</span> 移動　<span class="kbd">ドラッグ</span> 視点　<span class="kbd">Esc</span> 終了</div><div id="compareBadge">PLAN A｜夏・3年後・標準</div>
 <div id="plantEditPad" aria-label="植栽編集パッド"><button data-plant-action="left">←</button><button data-plant-action="up">↑</button><button data-plant-action="down">↓</button><button data-plant-action="right">→</button><button data-plant-action="rotate-left">↶</button><button data-plant-action="rotate-right">↷</button><button data-plant-action="reset">戻</button><button data-plant-action="duplicate">複</button><button data-plant-action="delete">削</button></div>
-<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./vendor/GLTFLoader.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/ground-materials.js"></script><script src="./js/building-materials.js"></script><script src="./js/building-model.js"></script><script src="./js/plant-materials.js"></script><script src="./js/plant-models.js"></script><script src="./js/environment-materials.js"></script><script src="./js/environment-model.js"></script><script src="./js/design-state.js"></script><script src="./js/plant-editor.js"></script><script src="./js/asset-catalog.js"></script><script src="./js/asset-loader.js"></script><script src="./js/app.js"></script>
+<div id="objectEditPad" aria-label="外構編集パッド"><button data-object-action="left">←</button><button data-object-action="up">↑</button><button data-object-action="down">↓</button><button data-object-action="right">→</button><button data-object-action="rotate-left">↶</button><button data-object-action="rotate-right">↷</button><button data-object-action="reset">戻</button><button data-object-action="duplicate">複</button><button data-object-action="delete">削</button></div>
+<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./vendor/GLTFLoader.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/ground-materials.js"></script><script src="./js/building-materials.js"></script><script src="./js/building-model.js"></script><script src="./js/plant-materials.js"></script><script src="./js/plant-models.js"></script><script src="./js/environment-materials.js"></script><script src="./js/environment-model.js"></script><script src="./js/object-catalog.js"></script><script src="./js/object-models.js"></script><script src="./js/design-state.js"></script><script src="./js/plant-editor.js"></script><script src="./js/object-editor.js"></script><script src="./js/asset-catalog.js"></script><script src="./js/asset-loader.js"></script><script src="./js/app.js"></script>
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(console.warn));

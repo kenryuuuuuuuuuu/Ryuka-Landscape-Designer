@@ -29,6 +29,45 @@
     return { overrides: {}, additions: [] };
   }
 
+  function objectUuid() {
+    if (global.crypto?.randomUUID) return `added-object-${global.crypto.randomUUID()}`;
+    return `added-object-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function emptyObjectLayout() {
+    return { overrides: {}, additions: [] };
+  }
+
+  function sanitizeObjectLayout(value, baseIds) {
+    const layout = emptyObjectLayout();
+    if (!value || typeof value !== 'object') return layout;
+    if (value.overrides && typeof value.overrides === 'object') {
+      Object.entries(value.overrides).forEach(([id, item]) => {
+        if (!baseIds.has(id) || !item || !safeCoordinate(item.x) || !safeCoordinate(item.z)) return;
+        layout.overrides[id] = {
+          x: Number(item.x), z: Number(item.z), rotation: finite(item.rotation) ? Number(item.rotation) : 0
+        };
+      });
+    }
+    const ids = new Set();
+    (Array.isArray(value.additions) ? value.additions : []).forEach(item => {
+      const profile = global.OBJECT_CATALOG_BY_TYPE?.get(item?.type);
+      if (!profile || !safeCoordinate(item.x) || !safeCoordinate(item.z)) return;
+      let id = typeof item.id === 'string' && item.id.startsWith('added-object-') ? item.id : objectUuid();
+      if (ids.has(id)) id = objectUuid();
+      ids.add(id);
+      layout.additions.push({
+        id, type: profile.type, label: profile.label, x: Number(item.x), z: Number(item.z),
+        rotation: finite(item.rotation) ? Number(item.rotation) : 0,
+        width: finite(item.width) && Number(item.width) > 0.1 && Number(item.width) < 20 ? Number(item.width) : profile.width,
+        depth: finite(item.depth) && Number(item.depth) > 0.1 && Number(item.depth) < 20 ? Number(item.depth) : profile.depth,
+        height: finite(item.height) && Number(item.height) > 0.05 && Number(item.height) < 20 ? Number(item.height) : profile.height,
+        clearance: profile.clearance, footprint: profile.footprint || 'box'
+      });
+    });
+    return layout;
+  }
+
   function sanitizeLayout(value) {
     const layout = emptyLayout();
     if (!value || typeof value !== 'object') return layout;
@@ -58,9 +97,12 @@
     return layout;
   }
 
-  function createDesignState({ baseTrees, defaults, storageKey = 'ryuka-v4-plans' }) {
+  function createDesignState({ baseTrees, baseObjects = [], defaults, storageKey = 'ryuka-v4-plans' }) {
     const base = baseTrees.map((tree, index) => Object.freeze({ ...tree, designId: `base-tree-${index}` }));
+    const objectBase = baseObjects.map(object => Object.freeze({ ...object, designId: object.designId || object.id }));
+    const objectBaseIds = new Set(objectBase.map(object => object.designId));
     const history = { A: { undo: [], redo: [] }, B: { undo: [], redo: [] } };
+    const objectHistory = { A: { undo: [], redo: [] }, B: { undo: [], redo: [] } };
     let activePlan = 'A';
 
     function normalizePlan(source, fallback) {
@@ -73,7 +115,8 @@
         cropPattern: ['A', 'B'].includes(value.cropPattern) ? value.cropPattern : fallback.cropPattern,
         showFlowers: typeof value.showFlowers === 'boolean' ? value.showFlowers : fallback.showFlowers,
         showFruit: typeof value.showFruit === 'boolean' ? value.showFruit : fallback.showFruit,
-        plantLayout: sanitizeLayout(value.plantLayout)
+        plantLayout: sanitizeLayout(value.plantLayout),
+        objectLayout: sanitizeObjectLayout(value.objectLayout, objectBaseIds)
       };
     }
 
@@ -89,6 +132,9 @@
     }
     function snapshot(key = activePlan) {
       return clone(plans[key].plantLayout);
+    }
+    function objectSnapshot(key = activePlan) {
+      return clone(plans[key].objectLayout);
     }
     function pushHistory(key = activePlan) {
       const stack = history[key];
@@ -115,6 +161,22 @@
       }));
       return existing.concat(additions);
     }
+    function resolveObjects(key = activePlan) {
+      const layout = plans[key].objectLayout;
+      const existing = objectBase.map(object => {
+        const override = layout.overrides[object.designId] || {};
+        const x = finite(override.x) ? Number(override.x) : object.x;
+        const z = finite(override.z) ? Number(override.z) : object.z;
+        return {
+          ...object, x, z, rotation: finite(override.rotation) ? Number(override.rotation) : object.rotation || 0,
+          sourceType: 'base', basePosition: { x: object.x, z: object.z }, currentPosition: { x, z }
+        };
+      });
+      return existing.concat(layout.additions.map(object => ({
+        ...object, designId: object.id, sourceType: 'added', layer: 'facilities',
+        basePosition: null, currentPosition: { x: object.x, z: object.z }
+      })));
+    }
     function mutate(fn, key = activePlan) {
       pushHistory(key);
       fn(plans[key].plantLayout);
@@ -133,6 +195,70 @@
           if (plant) Object.assign(plant, patch);
         }
       }, key);
+    }
+    function pushObjectHistory(key = activePlan) {
+      const stack = objectHistory[key];
+      stack.undo.push(objectSnapshot(key));
+      if (stack.undo.length > 50) stack.undo.shift();
+      stack.redo.length = 0;
+    }
+    function mutateObject(fn, key = activePlan) {
+      pushObjectHistory(key);
+      fn(plans[key].objectLayout);
+      persist();
+    }
+    function updateObject(id, patch, key = activePlan) {
+      const original = objectBase.find(object => object.designId === id);
+      mutateObject(layout => {
+        if (original) {
+          const next = { ...(layout.overrides[id] || {}), ...patch };
+          if (Math.hypot(Number(next.x) - original.x, Number(next.z) - original.z) < 1e-6 && Math.abs(Number(next.rotation || 0) - Number(original.rotation || 0)) < 1e-6) delete layout.overrides[id];
+          else layout.overrides[id] = next;
+        } else {
+          const object = layout.additions.find(item => item.id === id);
+          if (object) Object.assign(object, patch);
+        }
+      }, key);
+    }
+    function addObject(type, position, key = activePlan, source = null) {
+      const profile = global.OBJECT_CATALOG_BY_TYPE?.get(type);
+      if (!profile) return null;
+      const item = {
+        id: objectUuid(), type, label: source?.label || profile.label, x: Number(position.x), z: Number(position.z),
+        rotation: Number(source?.rotation) || 0, width: Number(source?.width) || profile.width, depth: Number(source?.depth) || profile.depth,
+        height: Number(source?.height) || profile.height, clearance: Number(source?.clearance) || profile.clearance, footprint: source?.footprint || profile.footprint || 'box'
+      };
+      mutateObject(layout => layout.additions.push(item), key);
+      return item.id;
+    }
+    function removeObject(id, key = activePlan) {
+      if (!id.startsWith('added-object-')) return false;
+      let removed = false;
+      mutateObject(layout => {
+        const index = layout.additions.findIndex(item => item.id === id);
+        if (index >= 0) { layout.additions.splice(index, 1); removed = true; }
+      }, key);
+      return removed;
+    }
+    function resetObject(id, key = activePlan) {
+      if (!objectBaseIds.has(id)) return false;
+      mutateObject(layout => delete layout.overrides[id], key);
+      return true;
+    }
+    function resetObjectLayout(key = activePlan) {
+      mutateObject(layout => { layout.overrides = {}; layout.additions = []; }, key);
+    }
+    function undoObject(key = activePlan) {
+      const stack = objectHistory[key];
+      if (!stack.undo.length) return false;
+      stack.redo.push(objectSnapshot(key));
+      plans[key].objectLayout = stack.undo.pop(); persist(); return true;
+    }
+    function redoObject(key = activePlan) {
+      const stack = objectHistory[key];
+      if (!stack.redo.length) return false;
+      stack.undo.push(objectSnapshot(key));
+      plans[key].objectLayout = stack.redo.pop(); persist(); return true;
     }
     function add(species, position, key = activePlan, source = null) {
       const profile = CATALOG_BY_NAME.get(species);
@@ -175,13 +301,14 @@
       plans[key].plantLayout = stack.redo.pop(); persist(); return true;
     }
     function updatePlanSettings(key, values) {
-      plans[key] = normalizePlan({ ...plans[key], ...values, plantLayout: plans[key].plantLayout }, defaults[key]);
+      plans[key] = normalizePlan({ ...plans[key], ...values, plantLayout: plans[key].plantLayout, objectLayout: plans[key].objectLayout }, defaults[key]);
       persist();
     }
     function replacePlans(value) {
       const source = value && typeof value === 'object' ? value : {};
       plans = { A: normalizePlan(source.A, defaults.A), B: normalizePlan(source.B, defaults.B) };
       history.A = { undo: [], redo: [] }; history.B = { undo: [], redo: [] };
+      objectHistory.A = { undo: [], redo: [] }; objectHistory.B = { undo: [], redo: [] };
       persist();
     }
     function cleanInvalid(validate) {
@@ -202,15 +329,36 @@
       persist();
       return removed;
     }
+    function cleanInvalidObjects(validate) {
+      let removed = 0;
+      ['A', 'B'].forEach(key => {
+        const layout = plans[key].objectLayout;
+        Object.keys(layout.overrides).forEach(id => {
+          const original = objectBase.find(object => object.designId === id), override = layout.overrides[id];
+          if (!original || !validate({ ...original, ...override, sourceType: 'base', basePosition: { x: original?.x, z: original?.z } }, override.x, override.z, override.rotation || 0)) { delete layout.overrides[id]; removed += 1; }
+        });
+        layout.additions = layout.additions.filter(item => {
+          const valid = validate({ ...item, designId: item.id, sourceType: 'added', basePosition: null }, item.x, item.z, item.rotation || 0);
+          if (!valid) removed += 1;
+          return valid;
+        });
+      });
+      persist();
+      return removed;
+    }
 
     persist();
     return {
       get plans() { return plans; }, get activePlan() { return activePlan; },
       setActivePlan(key) { activePlan = key === 'B' ? 'B' : 'A'; },
       resolve, updatePlant, add, remove, resetPlant, resetLayout, undo, redo,
+      resolveObjects, updateObject, addObject, removeObject, resetObject, resetObjectLayout, undoObject, redoObject,
       canUndo: key => history[key || activePlan].undo.length > 0,
       canRedo: key => history[key || activePlan].redo.length > 0,
-      updatePlanSettings, replacePlans, cleanInvalid, persist, sanitizeLayout
+      canUndoObject: key => objectHistory[key || activePlan].undo.length > 0,
+      canRedoObject: key => objectHistory[key || activePlan].redo.length > 0,
+      updatePlanSettings, replacePlans, cleanInvalid, cleanInvalidObjects, persist, sanitizeLayout,
+      sanitizeObjectLayout: value => sanitizeObjectLayout(value, objectBaseIds)
     };
   }
 
