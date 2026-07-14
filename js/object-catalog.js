@@ -5,7 +5,7 @@
   const TYPES = Object.freeze([
     { type: 'tool-shed', label: '道具物置', category: 'facility', defaultLayer: 'facilities', width: 3.95, depth: 3.05, height: 2.45, clearance: 0.35, assetId: 'tool-shed', doorOffsetZ: 1.38 },
     { type: 'garden-bench', label: 'ガーデンベンチ', category: 'furniture', defaultLayer: 'guestBeds', width: 1.6, depth: 0.45, height: 0.5, clearance: 0.25, assetId: 'garden-bench' },
-    { type: 'raised-bed', label: 'レイズドベッド', category: 'garden', defaultLayer: 'guestBeds', width: 2.4, depth: 1.2, height: 0.5, clearance: 0.3, assetId: 'raised-bed-frame', sizePresets: Object.freeze({ 'catalog-default': [2.4, 1.2, 0.5], 'guest-bed': [2.4, 1.2, 0.5], 'herb-bed': [2.2, 1.1, 0.5] }) },
+    { type: 'raised-bed', label: 'レイズドベッド', category: 'garden', defaultLayer: 'guestBeds', width: 2.4, depth: 1.2, height: 0.42, clearance: 0.3, assetId: 'raised-bed-frame', sizePresets: Object.freeze({ 'catalog-default': [2.4, 1.2, 0.42], 'guest-bed': [2.4, 1.2, 0.42], 'herb-bed': [2.2, 1.1, 0.42] }) },
     { type: 'storage-box', label: '屋外収納ボックス', category: 'facility', defaultLayer: 'facilities', width: 0.9, depth: 0.9, height: 0.9, clearance: 0.2 },
     { type: 'compost-bin', label: 'コンポスト', category: 'facility', defaultLayer: 'facilities', width: 0.9, depth: 0.9, height: 1.05, clearance: 0.3 },
     { type: 'rainwater-tank', label: '雨水タンク', category: 'facility', defaultLayer: 'facilities', width: 0.85, depth: 0.85, height: 1.25, clearance: 0.3, footprint: 'circle' },
@@ -35,7 +35,7 @@
       ...H.beds.map((p, index) => item(`base-object-herb-bed-${index}`, 'raised-bed', p.x, p.z, { layer: 'herbs', width: 2.2, depth: 1.1, bedKind: 'herb', sizePreset: 'herb-bed', seed: 220 + index })),
       ...F.storage.map((p, index) => item(`base-object-storage-${index}`, 'storage-box', p.x, p.z, { layer: 'facilities' })),
       item('base-object-water-station', 'water-station', F.well.x, F.well.z, {
-        label: '井戸・洗い場', layer: 'facilities', width: 2.35, depth: 2.0, height: 1.15,
+        label: '浅井戸・洗い場', layer: 'facilities', width: 2.35, depth: 2.0, height: 1.15,
         clearance: 0.3, footprint: 'box', parts: Object.freeze({
           well: { x: 0, z: 0 },
           pump: { x: F.pump.x - F.well.x, z: F.pump.z - F.well.z },

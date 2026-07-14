@@ -68,6 +68,7 @@ const duplicateBedId = state.addObject('raised-bed', { x: -10, z: 10 }, 'A', her
 const duplicateBed = state.resolveObjects('A').find(item => item.designId === duplicateBedId);
 assert.strictEqual(duplicateBed.width, 2.2, 'duplicate preserves allowed source dimensions');
 assert.strictEqual(duplicateBed.depth, 1.1, 'duplicate preserves herb-bed depth');
+assert.strictEqual(duplicateBed.height, 0.42, 'duplicate preserves v4.7 frame target height');
 assert.strictEqual(duplicateBed.layer, 'herbs', 'duplicate preserves source layer');
 assert.strictEqual(duplicateBed.sizePreset, 'herb-bed', 'duplicate preserves allowed size preset');
 
@@ -76,10 +77,11 @@ Object.entries(expectedLayers).forEach(([type, layer], index) => {
   const id = layerState.addObject(type, { x: index, z: 12 }, 'A');
   assert.strictEqual(layerState.resolveObjects('A').find(item => item.designId === id).layer, layer, `${type} addition uses catalog layer`);
 });
+assert.strictEqual(layerState.resolveObjects('A').find(item => item.type === 'raised-bed' && item.sourceType === 'added').height, 0.42, 'added raised bed uses a 0.42m target height');
 
 const sanitized = layerState.sanitizeObjectLayout({ additions: [
   { id: 'added-object-oversize', type: 'storage-box', x: 1, z: 2, width: 19, depth: 19, height: 19, rotation: 1e100, layer: 'not-a-layer' },
-  { id: 'added-object-herb-preset', type: 'raised-bed', x: 2, z: 3, width: 2.2, depth: 1.1, height: 0.5, sizePreset: 'herb-bed', layer: 'herbs', rotation: Infinity },
+  { id: 'added-object-herb-preset', type: 'raised-bed', x: 2, z: 3, width: 2.2, depth: 1.1, height: 0.42, sizePreset: 'herb-bed', layer: 'herbs', rotation: Infinity },
   { id: 'added-object-invalid-coordinate', type: 'garden-bench', x: NaN, z: 1 }
 ] });
 assert.strictEqual(sanitized.additions.length, 2, 'invalid coordinates are removed');
@@ -88,7 +90,7 @@ assert.deepStrictEqual([oversize.width, oversize.depth, oversize.height], [0.9, 
 assert.strictEqual(oversize.layer, 'facilities', 'invalid layer resets to catalog layer');
 assert(oversize.rotation >= -Math.PI && oversize.rotation < Math.PI, 'huge rotation is normalized');
 const sanitizedHerb = sanitized.additions.find(item => item.id === 'added-object-herb-preset');
-assert.deepStrictEqual([sanitizedHerb.width, sanitizedHerb.depth, sanitizedHerb.height], [2.2, 1.1, 0.5], 'explicit herb-bed preset is retained');
+assert.deepStrictEqual([sanitizedHerb.width, sanitizedHerb.depth, sanitizedHerb.height], [2.2, 1.1, 0.42], 'explicit herb-bed preset is retained');
 assert.strictEqual(sanitizedHerb.rotation, 0, 'non-finite rotation resets safely');
 
 const planState = createDesignState({ baseTrees: DATA.trees, baseObjects, defaults, storageKey: 'object-plan-validation-test' });
@@ -151,9 +153,26 @@ const expectedClusterCount = object => {
 };
 initial.filter(item => item.type === 'raised-bed').forEach(object => {
   const model = createObjectModel(object, modelOptions), count = expectedClusterCount(object);
+  assert.strictEqual(object.height, 0.42, `${object.designId} uses a 0.42m GLB target height`);
+  assert.strictEqual(model.children[0].scale.y, 0.38, `${object.designId} fallback frame remains 0.38m high`);
+  assert.strictEqual(model.children[0].position.y, 0.19, `${object.designId} fallback frame base remains unchanged`);
+  assert.strictEqual(model.children[1].position.y, 0.42, `${object.designId} soil surface position remains unchanged`);
   assert.strictEqual(model.userData.plantClusterCount, count, `${object.designId} preserves v4.7 random sequence`);
   assert.strictEqual(model.userData.plantLeafCount, count * 5, `${object.designId} has five leaves per cluster`);
 });
+const assetTargets = [];
+const assetManager = {
+  createInstance(id, options) {
+    assetTargets.push({ id, variant: options.variant, targetSize: { ...options.targetSize } });
+    return new THREE.Group();
+  }
+};
+const sampleBed = initial.find(item => item.designId === 'base-object-guest-bed-0');
+['high', 'low'].forEach(variant => createObjectModel(sampleBed, { ...modelOptions, modelDetail: 'detailed', variant, assetManager }));
+assert.deepStrictEqual(assetTargets, [
+  { id: 'raised-bed-frame', variant: 'high', targetSize: { x: 2.4, y: 0.42, z: 1.2 } },
+  { id: 'raised-bed-frame', variant: 'low', targetSize: { x: 2.4, y: 0.42, z: 1.2 } }
+], 'HIGH and LOW raised-bed GLBs use a 0.42m target height');
 const pergola = createObjectModel(initial.find(item => item.designId === 'base-object-pergola'), modelOptions);
 assert.strictEqual(pergola.userData.pergolaLeafCount, 28, 'pergola restores 28 leaf clusters');
 assert.strictEqual(pergola.userData.pergolaStructuralParts, 15, 'pergola restores all structural and bench parts');
