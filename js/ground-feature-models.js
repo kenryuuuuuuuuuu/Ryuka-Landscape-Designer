@@ -15,8 +15,17 @@
     if (clean.length > 1 && distance(clean[0], clean[clean.length - 1]) < minimum) clean.pop();
     return clean;
   }
+  function removeAdjacentDuplicatePolylinePoints(points, minimum = 1e-6) {
+    const clean = [];
+    (Array.isArray(points) ? points : []).forEach(point => {
+      if (!Number.isFinite(Number(point?.x)) || !Number.isFinite(Number(point?.z))) return;
+      const next = { x: Number(point.x), z: Number(point.z) };
+      if (!clean.length || distance(clean[clean.length - 1], next) >= minimum) clean.push(next);
+    });
+    return clean;
+  }
   function polylineLength(points) {
-    const clean = removeAdjacentDuplicatePoints(points);
+    const clean = removeAdjacentDuplicatePolylinePoints(points);
     let total = 0;
     for (let index = 1; index < clean.length; index += 1) total += distance(clean[index - 1], clean[index]);
     return total;
@@ -76,41 +85,128 @@
     const t = (dx * directionB.z - dz * directionB.x) / cross;
     return { x: a.x + directionA.x * t, z: a.z + directionA.z * t };
   }
-  function buildPathRibbon(points, width, miterLimit = 3) {
-    const clean = removeAdjacentDuplicatePoints(points);
+  function segmentIntersectionPoint(a, b, c, d) {
+    const directionA = { x: b.x - a.x, z: b.z - a.z }, directionB = { x: d.x - c.x, z: d.z - c.z };
+    const cross = directionA.x * directionB.z - directionA.z * directionB.x;
+    if (Math.abs(cross) < EPSILON) return null;
+    const dx = c.x - a.x, dz = c.z - a.z;
+    const first = (dx * directionB.z - dz * directionB.x) / cross;
+    const second = (dx * directionA.z - dz * directionA.x) / cross;
+    if (first <= EPSILON || first >= 1 - EPSILON || second <= EPSILON || second >= 1 - EPSILON) return null;
+    return { x: a.x + directionA.x * first, z: a.z + directionA.z * first };
+  }
+  function removePolygonLoops(points) {
+    let clean = removeAdjacentDuplicatePoints(points);
+    for (let pass = 0; pass < 12; pass += 1) {
+      let repaired = false;
+      for (let first = 0; first < clean.length && !repaired; first += 1) {
+        const firstNext = (first + 1) % clean.length;
+        for (let second = first + 2; second < clean.length; second += 1) {
+          const secondNext = (second + 1) % clean.length;
+          if (secondNext === first) continue;
+          const crossing = segmentIntersectionPoint(clean[first], clean[firstNext], clean[second], clean[secondNext]);
+          if (!crossing) continue;
+          const firstLoop = [crossing, ...clean.slice(firstNext, second + 1)];
+          const secondLoop = [crossing, ...clean.slice(secondNext), ...clean.slice(0, first + 1)];
+          clean = removeAdjacentDuplicatePoints(polygonArea(firstLoop) >= polygonArea(secondLoop) ? firstLoop : secondLoop);
+          repaired = true; break;
+        }
+      }
+      if (!repaired) break;
+    }
+    return clean;
+  }
+  function pathRibbonResult(points, width, miterLimit = 3) {
+    const clean = removeAdjacentDuplicatePolylinePoints(points);
     const safeWidth = Number(width);
-    if (clean.length < 2 || clean.length > 24 || !Number.isFinite(safeWidth) || safeWidth <= 0) return [];
+    const failure = (code, message) => ({ points: [], code, message });
+    if (clean.length < 2 || clean.length > 24 || !Number.isFinite(safeWidth) || safeWidth <= 0) {
+      return failure('invalid-input', '園路の頂点または幅が不正です');
+    }
     const half = safeWidth / 2;
     const directions = [], normals = [];
     for (let index = 0; index < clean.length - 1; index += 1) {
       const dx = clean[index + 1].x - clean[index].x, dz = clean[index + 1].z - clean[index].z;
       const length = Math.hypot(dx, dz);
-      if (length < EPSILON) return [];
+      if (length < EPSILON) return failure('degenerate-segment', '園路に長さのない辺があります');
       directions.push({ x: dx / length, z: dz / length });
       normals.push({ x: -dz / length, z: dx / length });
     }
-    const sidePoint = (index, sign) => {
-      if (index === 0) return { x: clean[0].x + normals[0].x * half * sign, z: clean[0].z + normals[0].z * half * sign };
-      if (index === clean.length - 1) {
-        const normal = normals[normals.length - 1];
-        return { x: clean[index].x + normal.x * half * sign, z: clean[index].z + normal.z * half * sign };
+    for (let index = 1; index < directions.length; index += 1) {
+      const dot = directions[index - 1].x * directions[index].x + directions[index - 1].z * directions[index].z;
+      const cross = directions[index - 1].x * directions[index].z - directions[index - 1].z * directions[index].x;
+      if (dot < -1 + 1e-7 && Math.abs(cross) < 5e-4) {
+        return failure('path-reversal', '園路が鋭く折り返しすぎています');
       }
-      const previous = normals[index - 1], next = normals[index];
-      const first = { x: clean[index].x + previous.x * half * sign, z: clean[index].z + previous.z * half * sign };
-      const second = { x: clean[index].x + next.x * half * sign, z: clean[index].z + next.z * half * sign };
-      const intersection = lineIntersection(first, directions[index - 1], second, directions[index]);
-      if (!intersection || distance(clean[index], intersection) > half * miterLimit) {
-        const mixed = { x: previous.x + next.x, z: previous.z + next.z };
-        const length = Math.hypot(mixed.x, mixed.z);
-        const normal = length < EPSILON ? next : { x: mixed.x / length, z: mixed.z / length };
-        return { x: clean[index].x + normal.x * half * sign, z: clean[index].z + normal.z * half * sign };
+    }
+    const sidePoints = sign => {
+      const outline = [{ x: clean[0].x + normals[0].x * half * sign, z: clean[0].z + normals[0].z * half * sign }];
+      for (let index = 1; index < clean.length - 1; index += 1) {
+        const previous = normals[index - 1], next = normals[index];
+        const previousDirection = directions[index - 1], nextDirection = directions[index];
+        const dot = previousDirection.x * nextDirection.x + previousDirection.z * nextDirection.z;
+        const cross = previousDirection.x * nextDirection.z - previousDirection.z * nextDirection.x;
+        const first = { x: clean[index].x + previous.x * half * sign, z: clean[index].z + previous.z * half * sign };
+        const second = { x: clean[index].x + next.x * half * sign, z: clean[index].z + next.z * half * sign };
+        if (dot > 1 - 1e-7 && Math.abs(cross) < 5e-4) {
+          outline.push(first);
+          continue;
+        }
+        const intersection = lineIntersection(first, previousDirection, second, nextDirection);
+        const miterLength = intersection ? distance(clean[index], intersection) : Infinity;
+        if (intersection && Number.isFinite(miterLength) && miterLength <= half * miterLimit) outline.push(intersection);
+        else if (intersection && Number.isFinite(miterLength) && cross * sign > 0) {
+          const ratio = half * miterLimit / miterLength;
+          outline.push({ x: clean[index].x + (intersection.x - clean[index].x) * ratio, z: clean[index].z + (intersection.z - clean[index].z) * ratio });
+        } else outline.push(first, second);
       }
-      return intersection;
+      const lastNormal = normals[normals.length - 1], last = clean[clean.length - 1];
+      outline.push({ x: last.x + lastNormal.x * half * sign, z: last.z + lastNormal.z * half * sign });
+      return outline;
     };
-    const left = clean.map((_, index) => sidePoint(index, 1));
-    const right = clean.map((_, index) => sidePoint(index, -1)).reverse();
-    const polygon = removeAdjacentDuplicatePoints(left.concat(right));
-    return polygon.length >= 4 && isSimplePolygon(polygon) ? polygon : [];
+    const left = sidePoints(1), right = sidePoints(-1).reverse();
+    let polygon = removeAdjacentDuplicatePoints(left.concat(right));
+    if (polygon.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.z))) return failure('non-finite', '園路形状を計算できません');
+    if (polygon.length < 4 || polygonArea(polygon) <= EPSILON) return failure('degenerate-ribbon', '園路の外周面積を確保できません');
+    if (!isSimplePolygon(polygon)) polygon = removePolygonLoops(polygon);
+    if (!isSimplePolygon(polygon)) return failure('self-intersection', '園路が鋭く折り返しすぎています');
+    return { points: polygon, code: null, message: '' };
+  }
+  function buildPathRibbon(points, width, miterLimit = 3) {
+    return pathRibbonResult(points, width, miterLimit).points;
+  }
+  function polylineMidpoint(points) {
+    const clean = removeAdjacentDuplicatePolylinePoints(points);
+    if (!clean.length) return { x: 0, z: 0 };
+    const total = polylineLength(clean);
+    if (total < EPSILON) return { ...clean[0] };
+    let remaining = total / 2;
+    for (let index = 1; index < clean.length; index += 1) {
+      const segment = distance(clean[index - 1], clean[index]);
+      if (remaining <= segment) {
+        const ratio = remaining / segment;
+        return { x: clean[index - 1].x + (clean[index].x - clean[index - 1].x) * ratio, z: clean[index - 1].z + (clean[index].z - clean[index - 1].z) * ratio };
+      }
+      remaining -= segment;
+    }
+    return { ...clean[clean.length - 1] };
+  }
+  function verticalPolygonIntervals(polygon, x) {
+    const clean = removeAdjacentDuplicatePoints(polygon);
+    if (clean.length < 3 || !isSimplePolygon(clean) || !Number.isFinite(x)) return [];
+    const intersections = [];
+    for (let index = 0; index < clean.length; index += 1) {
+      const a = clean[index], b = clean[(index + 1) % clean.length];
+      if (!((a.x <= x && b.x > x) || (b.x <= x && a.x > x))) continue;
+      intersections.push(a.z + (b.z - a.z) * (x - a.x) / (b.x - a.x));
+    }
+    intersections.sort((a, b) => a - b);
+    const unique = intersections.filter((value, index) => !index || Math.abs(value - intersections[index - 1]) > 1e-7);
+    const intervals = [];
+    for (let index = 0; index + 1 < unique.length; index += 2) {
+      if (unique[index + 1] - unique[index] > 1e-6) intervals.push({ minZ: unique[index], maxZ: unique[index + 1] });
+    }
+    return intervals;
   }
   function centroid(points) {
     const clean = removeAdjacentDuplicatePoints(points);
@@ -184,7 +280,10 @@
     mesh.rotation.x = -Math.PI / 2; mesh.position.y = item.y ?? 0.041; mesh.receiveShadow = true; mesh.userData.designId = item.designId;
     const linePoints = surface.map(point => new THREE.Vector3(point.x - center.x, (item.y ?? 0.041) + 0.012, point.z - center.z));
     linePoints.push(linePoints[0].clone());
-    const outline = new THREE.Line(new THREE.BufferGeometry().setFromPoints(linePoints), new THREE.LineBasicMaterial({ color: mode === 'plan' ? 0x3d4c4d : 0xe9ddbe, transparent: true, opacity: mode === 'plan' ? 0.78 : 0.32 }));
+    const status = options.status?.state || 'valid';
+    const outlineColor = status === 'invalid' ? 0xe85d5d : status === 'warning' ? 0xe3ba52 : mode === 'plan' ? 0x3d4c4d : 0xe9ddbe;
+    const outline = new THREE.Line(new THREE.BufferGeometry().setFromPoints(linePoints), new THREE.LineBasicMaterial({ color: outlineColor, transparent: true, opacity: mode === 'plan' ? 0.78 : 0.32 }));
+    outline.visible = mode === 'plan' || !!options.editing || !!options.selected;
     outline.userData.designId = item.designId;
     root.add(mesh, outline);
     return { group: root, mesh, outline, item, modelType: item.kind, layer: item.layer, surface };
@@ -198,7 +297,7 @@
     return totals;
   }
 
-  global.GROUND_GEOMETRY_UTILS = Object.freeze({ removeAdjacentDuplicatePoints, polylineLength, polygonArea, polygonPerimeter, segmentsIntersect, isSimplePolygon, buildPathRibbon, centroid, pointInPolygon, polygonsOverlap });
+  global.GROUND_GEOMETRY_UTILS = Object.freeze({ removeAdjacentDuplicatePoints, removeAdjacentDuplicatePolylinePoints, polylineLength, polylineMidpoint, polygonArea, polygonPerimeter, segmentsIntersect, isSimplePolygon, pathRibbonResult, buildPathRibbon, verticalPolygonIntervals, centroid, pointInPolygon, polygonsOverlap });
   global.createGroundFeatureMaterials = createGroundFeatureMaterials;
   global.createGroundFeatureModel = createGroundFeatureModel;
   global.groundFeatureTotals = groundTotals;

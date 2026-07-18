@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const THREE = require('../vendor/three.min.js');
 
 const storage = new Map();
 global.window = global;
@@ -20,6 +21,7 @@ function pointSet(points) {
 load('data/fixed-site-data.js');
 load('js/ground-feature-catalog.js');
 load('js/ground-feature-models.js');
+load('js/ground-feature-editor.js');
 load('js/design-state.js');
 
 assert.strictEqual(GROUND_FEATURE_CATALOG.length, 11, '11 addable ground feature types');
@@ -65,11 +67,56 @@ assert.strictEqual(U.polygonArea([{ x: 0, z: 2 }, { x: 4, z: 2 }, { x: 4, z: 0 }
 assert.strictEqual(U.polygonPerimeter([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 4, z: 2 }, { x: 0, z: 2 }]), 12, 'polygon perimeter');
 assert.strictEqual(U.isSimplePolygon([{ x: 0, z: 0 }, { x: 2, z: 2 }, { x: 0, z: 2 }, { x: 2, z: 0 }]), false, 'self-intersection is rejected');
 assert.deepStrictEqual(U.removeAdjacentDuplicatePoints([{ x: 0, z: 0 }, { x: 0, z: 0 }, { x: 1, z: 0 }]), [{ x: 0, z: 0 }, { x: 1, z: 0 }], 'adjacent duplicate points are removed');
-[0.4, 1.2, 4].forEach(width => assert(U.buildPathRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }], width).length === 4, `width ${width} ribbon`));
-const acute = U.buildPathRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 4.2, z: 3 }], 1.2);
-const reversal = U.buildPathRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 0.1, z: 0.05 }], 1.2);
-assert(acute.length >= 4 && acute.every(point => Number.isFinite(point.x) && Number.isFinite(point.z)), 'acute miter is finite');
-assert(reversal.every(point => Number.isFinite(point.x) && Number.isFinite(point.z)), 'near-180-degree ribbon has no NaN');
+function assertValidRibbon(points, label, width = 1.2) {
+  const ribbon = U.buildPathRibbon(points, width);
+  assert(ribbon.length >= 4, `${label}: ribbon has at least four points`);
+  assert(U.isSimplePolygon(ribbon), `${label}: ribbon is a simple polygon`);
+  assert(U.polygonArea(ribbon) > 0, `${label}: ribbon has positive area`);
+  assert(ribbon.every(point => Number.isFinite(point.x) && Number.isFinite(point.z)), `${label}: ribbon is finite`);
+  const shape = new THREE.Shape();
+  ribbon.forEach((point, index) => index ? shape.lineTo(point.x, point.z) : shape.moveTo(point.x, point.z));
+  shape.closePath();
+  const geometry = new THREE.ShapeGeometry(shape);
+  assert(geometry.attributes.position.count >= 3, `${label}: THREE.ShapeGeometry is drawable`);
+  geometry.dispose();
+}
+[0.4, 1.2, 4].forEach(width => assertValidRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }], `straight width ${width}`, width));
+assertValidRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 4, z: 4 }], '90 degree');
+assertValidRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 7, z: 3 }], '45 degree');
+assertValidRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 4.4, z: 3 }], 'acute turn');
+assertValidRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 0.5, z: 2 }], '150 degree reversal');
+assertValidRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 0.1, z: 0.7 }], '170 degree reversal');
+assertValidRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 0.1, z: 0.05 }], 'near 180 degree reversal');
+assertValidRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 4, z: 3 }, { x: 7, z: 3 }, { x: 7, z: 6 }], 'multiple turns');
+assertValidRibbon([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 4, z: 3 }, { x: 1, z: 3 }, { x: 1, z: 6 }], 'alternating turns');
+const exactReversal = U.pathRibbonResult([{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 0, z: 0 }], 1.2);
+assert.strictEqual(exactReversal.points.length, 0, 'exact reversal does not masquerade as a successful empty ribbon');
+assert.strictEqual(exactReversal.code, 'path-reversal', 'exact reversal exposes a reason');
+assert(exactReversal.message.includes('折り返し'), 'exact reversal exposes a user-facing message');
+
+const E = GROUND_EDITOR_GEOMETRY_UTILS;
+const openPoints = [{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 4, z: 3 }, { x: 8, z: 3 }];
+assert.strictEqual(E.closestSegmentIndex(openPoints, { x: 1, z: 0.1 }, false), 0, 'path first segment selection');
+assert.strictEqual(E.closestSegmentIndex(openPoints, { x: 4.1, z: 1.5 }, false), 1, 'path middle segment selection');
+assert.strictEqual(E.closestSegmentIndex(openPoints, { x: 7, z: 3.1 }, false), 2, 'path last segment selection');
+const closedPoints = [{ x: 0, z: 0 }, { x: 4, z: 0 }, { x: 4, z: 4 }, { x: 0, z: 4 }];
+assert.strictEqual(E.closestSegmentIndex(closedPoints, { x: -0.1, z: 2 }, true), 3, 'area closing segment selection');
+assert(E.distancePointToSegment({ x: 2, z: 2 }, { x: 0, z: 0 }, { x: 4, z: 0 }) === 2, 'point-to-segment distance');
+
+function assertIntervalsInside(polygon, x, expectedCount, label) {
+  const intervals = U.verticalPolygonIntervals(polygon, x);
+  assert.strictEqual(intervals.length, expectedCount, `${label}: interval count`);
+  intervals.forEach(interval => {
+    assert(interval.maxZ > interval.minZ, `${label}: positive interval`);
+    const inset = Math.min(0.31, (interval.maxZ - interval.minZ) / 4);
+    assert(U.pointInPolygon({ x, z: interval.minZ + inset }, polygon), `${label}: lower ridge endpoint inside`);
+    assert(U.pointInPolygon({ x, z: interval.maxZ - inset }, polygon), `${label}: upper ridge endpoint inside`);
+  });
+}
+assertIntervalsInside([{ x: 0, z: 0 }, { x: 6, z: 0 }, { x: 6, z: 5 }, { x: 0, z: 5 }], 3, 1, 'rectangle ridges');
+assertIntervalsInside([{ x: 0, z: 0 }, { x: 6, z: 1 }, { x: 5, z: 5 }, { x: 1, z: 5 }], 3, 1, 'trapezoid ridges');
+assertIntervalsInside([{ x: 0, z: 0 }, { x: 6, z: 0 }, { x: 3, z: 6 }], 3, 1, 'triangle ridges');
+assertIntervalsInside([{ x: 0, z: 0 }, { x: 6, z: 0 }, { x: 6, z: 2 }, { x: 2, z: 2 }, { x: 2, z: 4 }, { x: 6, z: 4 }, { x: 6, z: 6 }, { x: 0, z: 6 }], 4, 2, 'concave ridges');
 
 const defaults = {
   A: { season: 'summer', growthYear: 3, density: 'standard', cropPattern: 'A', showFlowers: true, showFruit: true },
@@ -120,6 +167,17 @@ while (historyState.undoGround('A')) undoCount += 1;
 assert.strictEqual(undoCount, 50, 'ground history is capped at 50 operations');
 assert.strictEqual(historyState.canUndoObject('A'), false, 'ground edits do not enter object history');
 assert.strictEqual(historyState.canUndo('A'), false, 'ground edits do not enter plant history');
+
+const interactionState = createDesignState({ baseTrees: DATA.trees, baseGroundFeatures: base, defaults, storageKey: 'ground-interaction-history' });
+interactionState.updateGroundFeature('base-ground-path-0', { points: expectedPaths[0].points, width: 2.5, materialId: 'path-gravel' }, 'A');
+assert.strictEqual(interactionState.undoGround('A'), true, 'one live-width commit creates one undo operation');
+assert.strictEqual(interactionState.undoGround('A'), false, 'live-width input previews do not create extra history');
+assert.strictEqual(interactionState.redoGround('A'), true, 'live-width commit is redoable');
+const vertexPoints = [{ x: -16, z: -2.8 }, { x: 1.75, z: -2.8 }, { x: 19.5, z: -2.8 }];
+interactionState.updateGroundFeature('base-ground-path-0', { points: vertexPoints, width: 2.5, materialId: 'path-gravel' }, 'A');
+assert.strictEqual(interactionState.resolveGroundFeatures('A')[0].points.length, 3, 'segment vertex addition is stored');
+assert.strictEqual(interactionState.undoGround('A'), true, 'vertex addition is undoable');
+assert.strictEqual(interactionState.redoGround('A'), true, 'vertex addition is redoable');
 
 const totals = groundFeatureTotals(state.resolveGroundFeatures('A'));
 assert(totals.pathLength > 0 && totals.pathArea > 0, 'path length and area totals');

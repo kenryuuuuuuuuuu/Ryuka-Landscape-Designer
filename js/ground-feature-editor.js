@@ -1,6 +1,29 @@
 (function exposeGroundFeatureEditor(global) {
   'use strict';
 
+  function distancePointToSegment(point, a, b) {
+    const dx = b.x - a.x, dz = b.z - a.z, lengthSquared = dx * dx + dz * dz;
+    if (lengthSquared < 1e-12) return Math.hypot(point.x - a.x, point.z - a.z);
+    const ratio = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.z - a.z) * dz) / lengthSquared));
+    return Math.hypot(point.x - (a.x + dx * ratio), point.z - (a.z + dz * ratio));
+  }
+  function closestSegmentIndex(points, point, closed) {
+    if (!Array.isArray(points) || points.length < 2) return -1;
+    const count = closed ? points.length : points.length - 1;
+    let best = -1, bestDistance = Infinity;
+    for (let index = 0; index < count; index += 1) {
+      const value = distancePointToSegment(point, points[index], points[(index + 1) % points.length]);
+      if (value < bestDistance) { bestDistance = value; best = index; }
+    }
+    return best;
+  }
+  function closestPointOnSegment(point, a, b) {
+    const dx = b.x - a.x, dz = b.z - a.z, lengthSquared = dx * dx + dz * dz;
+    if (lengthSquared < 1e-12) return { ...a };
+    const ratio = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.z - a.z) * dz) / lengthSquared));
+    return { x: a.x + dx * ratio, z: a.z + dz * ratio };
+  }
+
   function createGroundFeatureEditor(options) {
     const { THREE, scene, renderer, data, designState, getCamera, getObjects, getFeatures, toast, beforeBegin } = options;
     const utils = global.GROUND_GEOMETRY_UTILS;
@@ -17,9 +40,13 @@
     });
     const center = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.12, 12), new THREE.MeshBasicMaterial({ color: 0x62a8ff, depthTest: false }));
     center.renderOrder = 51; center.userData.centerHandle = true; overlay.add(center);
+    const segmentGeometry = new THREE.BufferGeometry();
+    segmentGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+    const segmentLine = new THREE.Line(segmentGeometry, new THREE.LineBasicMaterial({ color: 0xffd26a, depthTest: false, transparent: true, opacity: 0.95 }));
+    segmentLine.visible = false; segmentLine.renderOrder = 52; overlay.add(segmentLine);
     const origin = new THREE.Group(); origin.visible = false; scene.add(origin);
     const originMaterial = new THREE.LineDashedMaterial({ color: 0xc9b88d, dashSize: 0.35, gapSize: 0.22, transparent: true, opacity: 0.7, depthTest: false });
-    let editing = false, selectedId = null, selectedVertex = -1, drag = null;
+    let editing = false, selectedId = null, selectedVertex = -1, selectedSegment = -1, drag = null, widthEdit = null;
     let snap = Number(localStorage.getItem('ryuka-ground-snap') || 0.25);
 
     function entryVisible(entry) {
@@ -30,6 +57,11 @@
     function featureById(id = selectedId) { return getFeatures().find(item => item.designId === id) || null; }
     function snapValue(value) { return snap ? Math.round(value / snap) * snap : value; }
     function surface(item) { return item.kind === 'path' ? utils.buildPathRibbon(item.points, item.width) : item.points; }
+    function candidateItem(item, points = item.points, width = item.width) {
+      const polygon = item.kind === 'path' ? utils.buildPathRibbon(points, width) : points;
+      const labelPoint = item.kind === 'path' ? utils.polylineMidpoint(points) : utils.centroid(polygon.length ? polygon : points);
+      return { ...item, points, width, centroid: labelPoint, area: utils.polygonArea(polygon), perimeter: utils.polygonPerimeter(polygon), length: item.kind === 'path' ? utils.polylineLength(points) : 0 };
+    }
     function sameBase(item) {
       return item.sourceType === 'base' && JSON.stringify(item.points) === JSON.stringify(item.basePoints) && Math.abs((item.width || 0) - (item.baseWidth || 0)) < 1e-6 && item.materialId === item.baseMaterialId;
     }
@@ -56,7 +88,9 @@
       }
       if (item.kind === 'area' && (!utils.isSimplePolygon(item.points) || utils.polygonArea(item.points) < 0.5)) return { state: 'invalid', message: '単純な0.5㎡以上の区画にしてください' };
       if (item.kind === 'path' && (item.width < 0.4 || item.width > 4 || utils.polylineLength(item.points) < 0.5)) return { state: 'invalid', message: '園路幅または延長が範囲外です' };
-      const polygon = surface(item);
+      const ribbon = item.kind === 'path' ? utils.pathRibbonResult(item.points, item.width) : null;
+      if (ribbon?.code) return { state: 'invalid', code: ribbon.code, message: ribbon.message };
+      const polygon = ribbon ? ribbon.points : surface(item);
       if (polygon.length < 3 || !utils.isSimplePolygon(polygon)) return { state: 'invalid', message: '有効な地表形状を生成できません' };
       if (polygon.some(point => !utils.pointInPolygon(point, data.site))) return { state: 'invalid', message: '地表形状を敷地内へ配置してください' };
       if (utils.polygonsOverlap(polygon, buildingPolygon())) return { state: 'invalid', message: '建物と重なっています' };
@@ -92,6 +126,15 @@
     function setStateColor(state) {
       handles.forEach((handle, index) => { handle.material = state === 'invalid' ? handleMaterials.invalid : index === selectedVertex ? handleMaterials.selected : handleMaterials.normal; });
       center.material.color.setHex(state === 'invalid' ? 0xe85d5d : state === 'warning' ? 0xe3ba52 : 0x62a8ff);
+      segmentLine.material.color.setHex(state === 'invalid' ? 0xe85d5d : state === 'warning' ? 0xe3ba52 : 0xffd26a);
+    }
+    function syncSelectedSegment(item) {
+      const count = item?.kind === 'area' ? item.points.length : (item?.points.length || 0) - 1;
+      segmentLine.visible = selectedSegment >= 0 && selectedSegment < count;
+      if (!segmentLine.visible) return;
+      const a = item.points[selectedSegment], b = item.points[(selectedSegment + 1) % item.points.length], position = segmentGeometry.attributes.position;
+      position.setXYZ(0, a.x, 0.16, a.z); position.setXYZ(1, b.x, 0.16, b.z); position.needsUpdate = true;
+      segmentGeometry.computeBoundingSphere();
     }
     function syncOverlay(item = featureById()) {
       if (!editing || !item || !entryVisible(getObjects().get(item.designId))) { overlay.visible = false; clearOrigin(); options.onSelectionChange?.(null); return; }
@@ -101,22 +144,23 @@
         if (handle.visible) handle.position.set(item.points[index].x, 0.22, item.points[index].z);
       });
       center.position.set(item.centroid.x, 0.1, item.centroid.z);
+      syncSelectedSegment(item);
       const status = validation(item); setStateColor(status.state); syncOrigin(item);
       options.showInfo?.(item, status, selectedVertex); options.onSelectionChange?.(item, status, selectedVertex); updateButtons();
     }
     function select(id) {
       const entry = getObjects().get(id);
       if (!editing || !entryVisible(entry)) return false;
-      selectedId = id; selectedVertex = -1; document.body.classList.add('ground-selected'); syncOverlay(); return true;
+      selectedId = id; selectedVertex = -1; selectedSegment = -1; document.body.classList.add('ground-selected'); syncOverlay(); return true;
     }
     function selectVertex(index) {
       const item = featureById();
       if (item && Number(index) === -1) { selectedVertex = -1; syncOverlay(); return true; }
       if (!item || index < 0 || index >= item.points.length) return false;
-      selectedVertex = index; syncOverlay(); return true;
+      selectedVertex = index; selectedSegment = -1; syncOverlay(); return true;
     }
     function deselect() {
-      releaseCapture(); drag = null; selectedId = null; selectedVertex = -1; overlay.visible = false; clearOrigin();
+      releaseCapture(); drag = null; widthEdit = null; selectedId = null; selectedVertex = -1; selectedSegment = -1; overlay.visible = false; clearOrigin();
       document.body.classList.remove('ground-selected'); options.onSelectionChange?.(null); updateButtons();
     }
     function begin() {
@@ -150,13 +194,25 @@
     }
     function move(dx, dz, amount = 0.25) { const item = movedItem(dx * amount, dz * amount, false); if (item) commit(item, '地表形状を更新しました'); }
     function moveAll(dx, dz, amount = 0.25) { const item = movedItem(dx * amount, dz * amount, true); if (item) commit(item, '地表要素を移動しました'); }
-    function addVertex(segmentIndex = selectedVertex >= 0 ? selectedVertex : 0) {
+    function longestSegment(item) {
+      const count = item.kind === 'path' ? item.points.length - 1 : item.points.length;
+      let best = 0, bestLength = -1;
+      for (let index = 0; index < count; index += 1) {
+        const next = item.points[(index + 1) % item.points.length], length = Math.hypot(next.x - item.points[index].x, next.z - item.points[index].z);
+        if (length > bestLength) { bestLength = length; best = index; }
+      }
+      return best;
+    }
+    function addVertex(segmentIndex, preferredPoint) {
       const item = featureById(); if (!item || item.points.length >= 24) { toast('頂点は24点までです'); return false; }
       const limit = item.kind === 'path' ? item.points.length - 1 : item.points.length;
-      const index = Math.max(0, Math.min(limit - 1, Number(segmentIndex) || 0)), next = (index + 1) % item.points.length;
-      const midpoint = { x: snapValue((item.points[index].x + item.points[next].x) / 2), z: snapValue((item.points[index].z + item.points[next].z) / 2) };
+      const fallback = selectedSegment >= 0 ? selectedSegment : selectedVertex >= 0 && selectedVertex < limit ? selectedVertex : longestSegment(item);
+      const requested = Number.isInteger(Number(segmentIndex)) ? Number(segmentIndex) : fallback;
+      const index = Math.max(0, Math.min(limit - 1, requested)), next = (index + 1) % item.points.length;
+      const source = preferredPoint ? closestPointOnSegment(preferredPoint, item.points[index], item.points[next]) : { x: (item.points[index].x + item.points[next].x) / 2, z: (item.points[index].z + item.points[next].z) / 2 };
+      const midpoint = { x: snapValue(source.x), z: snapValue(source.z) };
       const points = item.points.map(point => ({ ...point })); points.splice(index + 1, 0, midpoint);
-      if (commit({ ...item, points }, '頂点を追加しました')) { selectedVertex = index + 1; syncOverlay(); return true; }
+      if (commit(candidateItem(item, points), '頂点を追加しました')) { selectedVertex = index + 1; selectedSegment = -1; syncOverlay(); return true; }
       return false;
     }
     function removeVertex() {
@@ -170,6 +226,28 @@
     function setWidth(width) {
       const item = featureById(); if (!item || item.kind !== 'path') return false;
       return commit({ ...item, width: Math.max(0.4, Math.min(4, Number(width) || item.width)) }, '園路幅を変更しました');
+    }
+    function beginWidthPreview() {
+      const item = featureById();
+      if (!item || item.kind !== 'path' || widthEdit) return false;
+      widthEdit = { id: item.designId, startWidth: item.width, lastValid: item };
+      return true;
+    }
+    function previewWidth(width) {
+      const item = featureById(); if (!item || item.kind !== 'path') return false;
+      if (!widthEdit) beginWidthPreview();
+      const value = Math.max(0.4, Math.min(4, Number(width) || item.width)), candidate = candidateItem(item, item.points, value), status = validation(candidate);
+      widthEdit.lastValid = status.state !== 'invalid' ? candidate : null;
+      options.preview?.(candidate, status); options.showInfo?.(candidate, status, selectedVertex); options.onSelectionChange?.(candidate, status, selectedVertex); setStateColor(status.state);
+      return status.state !== 'invalid';
+    }
+    function finishWidthPreview(cancelled = false) {
+      if (!widthEdit) return false;
+      const active = widthEdit, original = featureById(active.id); widthEdit = null;
+      if (cancelled || !active.lastValid || Math.abs(active.lastValid.width - active.startWidth) < 1e-9) {
+        options.preview?.(original, validation(original)); syncOverlay(original); return false;
+      }
+      return commit(active.lastValid, '園路幅を変更しました');
     }
     function setMaterial(materialId) {
       const item = featureById(), material = global.GROUND_FEATURE_MATERIALS[materialId];
@@ -253,6 +331,14 @@
       }
       const item = featureById(); if (!item) return;
       ray(event); if (!raycaster.ray.intersectPlane(plane, hit)) return;
+      if (event.altKey) {
+        const point = { x: hit.x, z: hit.z }, index = closestSegmentIndex(item.points, point, item.kind === 'area');
+        const tolerance = Math.max(0.65, item.kind === 'path' ? item.width / 2 + 0.35 : 0.65);
+        if (index >= 0 && distancePointToSegment(point, item.points[index], item.points[(index + 1) % item.points.length]) <= tolerance) {
+          selectedSegment = index; selectedVertex = -1; syncOverlay(item); addVertex(index, point);
+        } else toast('追加する辺の近くをAlt＋クリックしてください');
+        event.preventDefault(); event.stopPropagation(); return;
+      }
       drag = { pointerId: event.pointerId, id: item.designId, vertex: selectedVertex, startHit: { x: hit.x, z: hit.z }, startPoints: item.points.map(point => ({ ...point })), lastValid: item };
       renderer.domElement.setPointerCapture?.(event.pointerId); event.preventDefault(); event.stopPropagation(); syncOverlay();
     }
@@ -262,11 +348,10 @@
       const current = featureById(drag.id); if (!current) return;
       const dx = snapValue(hit.x - drag.startHit.x), dz = snapValue(hit.z - drag.startHit.z);
       const points = drag.startPoints.map((point, index) => drag.vertex >= 0 && index !== drag.vertex ? { ...point } : ({ x: point.x + dx, z: point.z + dz }));
-      const candidateSurface = current.kind === 'path' ? utils.buildPathRibbon(points, current.width) : points;
-      const candidate = { ...current, points, centroid: utils.centroid(candidateSurface.length ? candidateSurface : points), area: utils.polygonArea(candidateSurface), perimeter: utils.polygonPerimeter(candidateSurface), length: current.kind === 'path' ? utils.polylineLength(points) : 0 };
+      const candidate = candidateItem(current, points);
       const status = validation(candidate);
       if (status.state !== 'invalid') drag.lastValid = candidate;
-      options.preview?.(candidate, status);handles.forEach((handle,index)=>{if(index<points.length)handle.position.set(points[index].x,.22,points[index].z)});center.position.set(candidate.centroid.x,.1,candidate.centroid.z);options.showInfo?.(candidate, status, selectedVertex); setStateColor(status.state);
+      options.preview?.(candidate, status);handles.forEach((handle,index)=>{if(index<points.length)handle.position.set(points[index].x,.22,points[index].z)});center.position.set(candidate.centroid.x,.1,candidate.centroid.z);syncSelectedSegment(candidate);options.showInfo?.(candidate, status, selectedVertex);options.onSelectionChange?.(candidate,status,selectedVertex); setStateColor(status.state);
       event.preventDefault(); event.stopPropagation();
     }
     function finishDrag(cancelled) {
@@ -283,7 +368,9 @@
     }
     function formFocused() { const element = document.activeElement; return ['INPUT', 'SELECT', 'TEXTAREA'].includes(element?.tagName) || element?.isContentEditable; }
     function onKeyDown(event) {
-      if (!editing || formFocused()) return;
+      if (!editing) return;
+      if (event.code === 'Escape' && widthEdit) { finishWidthPreview(true); event.preventDefault(); return; }
+      if (formFocused()) return;
       if ((event.ctrlKey || event.metaKey) && event.code === 'KeyZ') { history(event.shiftKey); event.preventDefault(); return; }
       if (event.code === 'Escape') { if (drag) finishDrag(true); else if (selectedVertex >= 0) { selectedVertex = -1; syncOverlay(); } else deselect(); event.preventDefault(); return; }
       if (!selectedId) return;
@@ -308,8 +395,8 @@
     global.addEventListener('keydown', onKeyDown, { capture: true });
 
     return {
-      isEditing: () => editing, get selectedId() { return selectedId; }, get selectedVertex() { return selectedVertex; },
-      begin, end, select, selectVertex, deselect, move, moveAll, addVertex, removeVertex, setWidth, setMaterial,
+      isEditing: () => editing, get selectedId() { return selectedId; }, get selectedVertex() { return selectedVertex; }, get selectedSegment() { return selectedSegment; },
+      begin, end, select, selectVertex, deselect, move, moveAll, addVertex, removeVertex, setWidth, beginWidthPreview, previewWidth, finishWidthPreview, setMaterial,
       add, duplicate, remove, resetSelected, resetPlan, undo: () => history(false), redo: () => history(true),
       list: () => getFeatures().map(item => ({ ...item, points: item.points.map(point => ({ ...point })) })),
       totals: () => global.groundFeatureTotals(getFeatures()), validation, isValid: (item, context) => validation(item, context).state !== 'invalid',
@@ -320,4 +407,5 @@
   }
 
   global.createGroundFeatureEditor = createGroundFeatureEditor;
+  global.GROUND_EDITOR_GEOMETRY_UTILS = Object.freeze({ distancePointToSegment, closestSegmentIndex });
 })(window);
