@@ -72,7 +72,8 @@
         const distance = Math.hypot(x - other.x, z - other.z);
         if (distance < (plant.r + other.r) * 0.72) { warning = '樹冠が大きく重なっています'; break; }
       }
-      if (!warning && data.paths.some(path => pointInPolygon(x, z, path))) warning = '園路と重なっています';
+      const currentPaths = options.getGroundFeatures?.().filter(item => item.kind === 'path').map(item => global.GROUND_GEOMETRY_UTILS?.buildPathRibbon(item.points, item.width)).filter(path => path?.length) || data.paths;
+      if (!warning && currentPaths.some(path => pointInPolygon(x, z, path))) warning = '園路と重なっています';
       return { state: warning ? 'warning' : 'valid', message: warning };
     }
     function syncOverlay() {
