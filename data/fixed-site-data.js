@@ -52,11 +52,13 @@
         { face: 'N', lx: 5.000, w: 1.65, h: 0.90, sill: 1.100, kind: 'window', id: 'AW16509', label: '民泊 北窓' },
         { face: 'N', lx: 10.000, w: 0.90, h: 2.30, sill: 0,    kind: 'door',   id: 'AD0923',  label: '自宅 玄関' },
         { face: 'N', lx: 11.400, w: 0.69, h: 0.90, sill: 1.100, kind: 'window', id: 'AW06903', label: '北土間 窓' },
-        { face: 'S', lx: 2.000, w: 0.65, h: 2.00, sill: 0.050, kind: 'window', id: 'AW06520', label: '民泊 縦すべり' },
-        { face: 'S', lx: 4.550, w: 2.25, h: 0.90, sill: 0.900, kind: 'window', id: 'AW22509', label: '民泊リビング 腰窓（畑向き）' },
-        { face: 'S', lx: 8.500, w: 1.60, h: 2.20, sill: 0.050, kind: 'window', id: 'AW16022', label: '掃き出し窓' },
-        { face: 'S', lx: 13.500, w: 1.60, h: 2.20, sill: 0.050, kind: 'window', id: 'AW16022', label: '自宅LDK 掃き出し' },
-        { face: 'S', lx: 17.800, w: 0.60, h: 0.90, sill: 1.100, kind: 'window', id: 'AW06009', label: '南土間 窓' },
+        { face: 'S', lx: 3.700, w: 1.60, h: 0.90, sill: 0.900, kind: 'window', id: 'AW06520', label: '民泊リビング 腰窓（畑向き）' },
+        // ※立面図ではAW06520が縦長窓として描かれているが、平面図の呼称(0652=幅650×高さ...ではなく
+        // 実際は横長の腰窓)と施主確認により、平面図側を正として横長・幅1.6m×高さ0.9mを採用。
+        { face: 'S', lx: 5.900, w: 0.60, h: 0.50, sill: 1.100, kind: 'window', id: 'AW06005', label: '民泊リビング キッチン横の小窓' },
+        { face: 'S', lx: 9.500, w: 2.25, h: 0.90, sill: 0.900, kind: 'window', id: 'AW22509', label: '自宅リビング 腰窓' },
+        { face: 'S', lx: 11.800, w: 1.60, h: 2.20, sill: 0.050, kind: 'window', id: 'AW16022', label: '自宅リビング 掃き出し窓' },
+        { face: 'S', lx: 14.500, w: 0.60, h: 0.90, sill: 1.100, kind: 'window', id: 'AW06009', label: '自宅リビング キッチン横の小窓' },
         { face: 'N', lx: 14.300, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 北窓' },
         { face: 'N', lx: 17.400, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 北窓' },
         { face: 'S', lx: 15.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室13.25 南窓' },
