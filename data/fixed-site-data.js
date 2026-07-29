@@ -60,7 +60,13 @@
         { face: 'N', lx: 14.300, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 北窓' },
         { face: 'N', lx: 17.400, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 北窓' },
         { face: 'S', lx: 15.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室13.25 南窓' },
-        { face: 'S', lx: 18.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室 南窓' }
+        { face: 'S', lx: 18.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室 南窓' },
+        // 東面（東側立面図より）。土間から畑へ出るドアと、2階洋室の東窓。
+        // lzは北端からの奥行き局所座標。位置・寸法は立面図読み取りの暫定値、建具表未確定。
+        { face: 'E', lz: 6.200, w: 0.90, h: 2.00, sill: 0,     level: 1, kind: 'door',   id: '未確定', label: '南土間 東ドア（畑への動線）' },
+        { face: 'E', lz: 2.200, w: 0.60, h: 0.90, sill: 1.100, level: 1, kind: 'window', id: '未確定', label: '1階 東窓（洗面まわり）' },
+        { face: 'E', lz: 2.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室7.45 東窓' },
+        { face: 'E', lz: 4.500, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室7.45 東窓' }
       ],
       doorX: 2.654,
     },

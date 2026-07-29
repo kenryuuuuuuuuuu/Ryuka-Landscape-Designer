@@ -41,34 +41,65 @@
   }
 
   // ---- 開口部 ----
+  // face: 'N'/'S' は局所x(lx)+階に応じた奥行きで位置決め、'E'/'W' は局所z(lz)+東西端で位置決め。
   function addOpening(group, B, o, materials, tag) {
-    // 2階の壁は floor2.depth（6.370m）で一定。1階floor1区画は南面が段状で
-    // depthが区画ごとに異なる（南土間側は7.735m）ため、階を混同すると
-    // 2階窓が実際の壁面より外側（南）へ飛び出す。必ず該当階のdepthを使う。
     const T = makeXf(B);
-    const depth = o.level === 2 ? B.floor2.depth : segmentAt(B, o.lx).depth;
-    const outward = o.face === 'S' ? 1 : -1;
-    const lz = o.face === 'S' ? depth : 0;
-    const z = T.z(lz) + outward * 0.09;
-    const base = (o.level === 2 ? B.levels.fl2 : B.levels.fl1);
-    const y = base + o.sill + o.h / 2;
-    const x = T.x(o.lx);
-    const face = z + outward * 0.035;
-    box(group, o.w + 0.18, o.h + 0.18, 0.07, materials.interior, x, y, z - outward * 0.025, false);
-    const glass = box(group, o.w, o.h, 0.035,
-      o.kind === 'door' ? materials.wood : materials.glass, x, y, z + outward * 0.005, false);
-    if (o.kind !== 'door') box(group, o.w - 0.18, o.h - 0.16, 0.018, materials.curtain, x, y, z - outward * 0.05, false);
+    const isNS = o.face === 'N' || o.face === 'S';
+    let x, z, outward;
+    if (isNS) {
+      // 2階の壁は floor2.depth（6.370m）で一定。1階floor1区画は南面が段状で
+      // depthが区画ごとに異なる（南土間側は7.735m）ため、階を混同すると
+      // 2階窓が実際の壁面より外側（南）へ飛び出す。必ず該当階のdepthを使う。
+      const depth = o.level === 2 ? B.floor2.depth : segmentAt(B, o.lx).depth;
+      outward = o.face === 'S' ? 1 : -1;
+      const lz = o.face === 'S' ? depth : 0;
+      x = T.x(o.lx); z = T.z(lz) + outward * 0.09;
+    } else {
+      // 東西面: 東端=segment4(x=19.110)、西端=segment1(x=0)。lzは北端からの奥行き。
+      outward = o.face === 'E' ? 1 : -1;
+      const lx = o.face === 'E' ? B.floor1[B.floor1.length - 1].x1 : 0;
+      x = T.x(lx) + outward * 0.09; z = T.z(o.lz);
+    }
+    const y = (o.level === 2 ? B.levels.fl2 : B.levels.fl1) + o.sill + o.h / 2;
+    const face = isNS ? z + outward * 0.035 : x + outward * 0.035;
+    const frameOuter = isNS
+      ? [o.w + 0.18, o.h + 0.18, 0.07]
+      : [0.07, o.h + 0.18, o.w + 0.18];
+    const pFrame = isNS ? [x, y, z - outward * 0.025] : [x - outward * 0.025, y, z];
+    box(group, ...frameOuter, materials.interior, ...pFrame, false);
+    const glassSize = isNS ? [o.w, o.h, 0.035] : [0.035, o.h, o.w];
+    const pGlass = isNS ? [x, y, z + outward * 0.005] : [x + outward * 0.005, y, z];
+    const glass = box(group, ...glassSize, o.kind === 'door' ? materials.wood : materials.glass, ...pGlass, false);
+    if (o.kind !== 'door') {
+      const cSize = isNS ? [o.w - 0.18, o.h - 0.16, 0.018] : [0.018, o.h - 0.16, o.w - 0.18];
+      const pC = isNS ? [x, y, z - outward * 0.05] : [x - outward * 0.05, y, z];
+      box(group, ...cSize, materials.curtain, ...pC, false);
+    }
     const f = 0.09;
-    box(group, o.w + 0.18, f, 0.11, materials.metal, x, y + o.h / 2 + f / 2, face, false);
-    box(group, o.w + 0.18, f, 0.11, materials.metal, x, y - o.h / 2 - f / 2, face, false);
-    box(group, f, o.h, 0.11, materials.metal, x - o.w / 2 - f / 2, y, face, false);
-    box(group, f, o.h, 0.11, materials.metal, x + o.w / 2 + f / 2, y, face, false);
-    if (o.kind !== 'door') box(group, o.w + 0.30, 0.055, 0.19, materials.trim, x, y - o.h / 2 - 0.11, z + outward * 0.075, false);
-    if (tag) tag(glass, {
-      title: o.label,
-      body: `${o.face === 'S' ? '南面（畑側）' : '北面（進入路側）'}の${o.kind === 'door' ? '建具' : '窓'}。記号${o.id}。位置は平面図読み取りの暫定値で、建具表での確定待ち。`,
-      meta: [['記号', o.id], ['寸法', `${o.w}×${o.h}m`], ['窓台', `FL+${o.sill}m`], ['局所x', `${o.lx}m`]]
-    });
+    const barH = isNS ? [o.w + 0.18, f, 0.11] : [0.11, f, o.w + 0.18];
+    const barV = isNS ? [f, o.h, 0.11] : [0.11, o.h, f];
+    box(group, ...barH, materials.metal, isNS ? x : face, y + o.h / 2 + f / 2, isNS ? face : z, false);
+    box(group, ...barH, materials.metal, isNS ? x : face, y - o.h / 2 - f / 2, isNS ? face : z, false);
+    if (isNS) {
+      box(group, ...barV, materials.metal, x - o.w / 2 - f / 2, y, face, false);
+      box(group, ...barV, materials.metal, x + o.w / 2 + f / 2, y, face, false);
+    } else {
+      box(group, ...barV, materials.metal, face, y, z - o.w / 2 - f / 2, false);
+      box(group, ...barV, materials.metal, face, y, z + o.w / 2 + f / 2, false);
+    }
+    if (o.kind !== 'door') {
+      const sillSize = isNS ? [o.w + 0.30, 0.055, 0.19] : [0.19, 0.055, o.w + 0.30];
+      const pSill = isNS ? [x, y - o.h / 2 - 0.11, z + outward * 0.075] : [x + outward * 0.075, y - o.h / 2 - 0.11, z];
+      box(group, ...sillSize, materials.trim, ...pSill, false);
+    }
+    if (tag) {
+      const faceName = { N: '北面（進入路側）', S: '南面（畑側）', E: '東面（畑への動線側）', W: '西面' }[o.face];
+      tag(glass, {
+        title: o.label,
+        body: `${faceName}の${o.kind === 'door' ? '建具' : '窓'}。記号${o.id}。位置は立面図読み取りの暫定値で、建具表での確定待ち。`,
+        meta: [['記号', o.id], ['寸法', `${o.w}×${o.h}m`], ['窓台', `FL+${o.sill}m`]]
+      });
+    }
     return glass;
   }
   function segmentAt(B, lx) {
@@ -98,11 +129,20 @@
     slopeRoof(group, B, m.planRoof, 0, f2.x0, -B.eave.north, L.eaveLow, B.hirayaEaveSouth, L.eaveHigh, 0.1);
     B.openings.forEach(o => {
       const T = makeXf(B);
-      const depth = o.level === 2 ? B.floor2.depth : segmentAt(B, o.lx).depth;
-      const outward = o.face === 'S' ? 1 : -1, lz = o.face === 'S' ? depth : 0;
+      const isNS = o.face === 'N' || o.face === 'S';
       const base = (o.level === 2 ? B.levels.fl2 : B.levels.fl1);
-      box(group, o.w, o.h, 0.04, o.kind === 'door' ? m.planDoor : m.planOpening,
-        T.x(o.lx), base + o.sill + o.h / 2, T.z(lz) + outward * 0.06, false);
+      const y = base + o.sill + o.h / 2;
+      if (isNS) {
+        const depth = o.level === 2 ? B.floor2.depth : segmentAt(B, o.lx).depth;
+        const outward = o.face === 'S' ? 1 : -1, lz = o.face === 'S' ? depth : 0;
+        box(group, o.w, o.h, 0.04, o.kind === 'door' ? m.planDoor : m.planOpening,
+          T.x(o.lx), y, T.z(lz) + outward * 0.06, false);
+      } else {
+        const outward = o.face === 'E' ? 1 : -1;
+        const lx = o.face === 'E' ? B.floor1[B.floor1.length - 1].x1 : 0;
+        box(group, 0.04, o.h, o.w, o.kind === 'door' ? m.planDoor : m.planOpening,
+          T.x(lx) + outward * 0.06, y, T.z(o.lz), false);
+      }
     });
   }
 
@@ -128,12 +168,15 @@
         meta: [['幅', `${(s.x1 - s.x0).toFixed(3)}m`], ['奥行', `${s.depth.toFixed(3)}m`], ['面積', `${s.area}㎡`]]
       });
     });
-    // 平屋部の妻壁（片流れの立ち上がり分）
-    // 片流れは南（畑側）が高く、北（進入路側）が低い。
-    for (const s of B.floor1) {
-      if (s.x0 >= f2.x0 - 1e-6) continue;
-      const y = lz => L.eaveLow + (lz + B.eave.north) * B.pitch.hiraya;
-      const yN = y(0), yS = y(s.depth);
+    // 平屋部の妻壁＋片流れ屋根（区画ごと）。
+    // 単一平面で全区画を南7.280mまで一律に延ばすと、奥行きの浅い区画（segment1: 5.460m）で
+    // 1.8m超の不自然なカンチレバーになるため、各区画は「自分の壁＋控えめな軒の出0.5m」で止める。
+    // 勾配の式(y)は区画をまたいで共通なので、屋根の傾き自体は連続している。
+    const hiraSegments = B.floor1.filter(s => s.x0 < f2.x0 - 1e-6);
+    const y = lz => L.eaveLow + (lz + B.eave.north) * B.pitch.hiraya;
+    for (const s of hiraSegments) {
+      const zEave = s.depth + B.eave.south;
+      const yN = y(0), yS = y(s.depth), yEave = y(zEave);
       const shape = new THREE.Shape();
       shape.moveTo(0, L.eaveLow); shape.lineTo(s.depth, L.eaveLow);
       shape.lineTo(s.depth, yS); shape.lineTo(0, yN); shape.closePath();
@@ -143,6 +186,13 @@
         mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
       }
       mass(group, B, m.wall, s.x0, s.x1, 0, 0.16, L.eaveLow, yN, true);
+      const seg = slopeRoof(group, B, m.roof, s.x0 - B.eave.gable, s.x1 + B.eave.gable,
+        -B.eave.north, L.eaveLow, zEave, yEave, 0.18);
+      tag(seg, {
+        title: `平屋部 片流れ屋根（1.5寸）｜${s.use}`,
+        body: '畑（南）に向かって上がる片流れ。区画ごとに壁＋軒の出0.5mで止め、奥の区画ほど深く張り出す段状の軒先になる。',
+        meta: [['勾配', '10:1.5'], ['北軒高', `GL+${L.eaveLow}m`], ['南軒高', `GL+${yEave.toFixed(3)}m`]]
+      });
     }
 
     // 2階ボリューム
@@ -164,14 +214,7 @@
       }
     }
 
-    // 屋根：平屋部＝1.5寸片流れ（南高・北低、畑に向かって上がる）／2階部＝3寸切妻（棟は東西）
-    const hira = slopeRoof(group, B, m.roof, -B.eave.gable, f2.x0 + B.eave.gable,
-      -B.eave.north, L.eaveLow, B.hirayaEaveSouth, L.eaveHigh, 0.18);
-    tag(hira, {
-      title: '平屋部 片流れ屋根（1.5寸）',
-      body: '畑（南）に向かって上がる片流れ。南側の軒先は建築面積求積図から逆算した7.280mライン。壁より最大1.82m張り出し、畑向きの軒下空間になる。',
-      meta: [['勾配', '10:1.5'], ['北軒高', `GL+${L.eaveLow}m`], ['南軒高（畑側）', `GL+${L.eaveHigh}m`], ['軒下面積', `約${B.areas.roofedNonFloor}㎡`]]
-    });
+    // 屋根：2階部＝3寸切妻（棟は東西）。平屋部の屋根は区画ごとに上のループで生成済み。
     const rn = slopeRoof(group, B, m.roof, f2.x0 - B.eave.gable, f2.x1 + B.eave.gable,
       -B.eave.main, L.eave2, f2.depth / 2, L.ridge, 0.18);
     const rs = slopeRoof(group, B, m.roof, f2.x0 - B.eave.gable, f2.x1 + B.eave.gable,
@@ -186,19 +229,25 @@
     mass(group, B, m.metal, f2.x0 - B.eave.gable, f2.x1 + B.eave.gable,
       f2.depth / 2 - 0.11, f2.depth / 2 + 0.11, L.ridge - 0.09, L.ridge + 0.07, false);
 
-    // 南東の下屋（南土間 = 畑からの動線）。主屋根の南端(畑側)は最も高いeaveHighを基準に、
-    // そこからさらに南へ張り出す分だけ下げる小庇として構成。
+    // 南東の下屋（南土間 = 畑からの動線）。2階の南面(z=f2.depth)から、
+    // 2階に覆われない南側の張り出し部分（doma.depth+南軒 まで）を覆う小庇。
     const doma = B.floor1[B.floor1.length - 1];
+    const domaStartY = L.eave2 - (L.eave2 - L.eaveLow) * 0.35; // 2階南壁下端付近から立ち下がる仮の接続高さ
     slopeRoof(group, B, m.roof, doma.x0 - B.eave.gable, doma.x1 + B.eave.gable,
-      f2.depth, L.eaveHigh, doma.depth + B.eave.south, L.eaveHigh - (doma.depth + B.eave.south - f2.depth) * B.pitch.hiraya, 0.14);
+      f2.depth, domaStartY, doma.depth + B.eave.south, domaStartY - (doma.depth + B.eave.south - f2.depth) * B.pitch.hiraya, 0.14);
 
-    // 雨樋（平屋南軒・2階南北軒）。平屋南軒（畑側）が最高点になったため eaveHigh を使用。
-    cylinder(group, 0.075, f2.x0 + 0.3, m.gutter, T.cx(0, f2.x0), L.eaveHigh - 0.12, T.z(B.hirayaEaveSouth), 8, true);
+    // 雨樋：平屋部は区画ごとの軒先に沿って設置、2階部は南北軒に設置
+    for (const s of hiraSegments) {
+      const zEave = s.depth + B.eave.south, yEave = y(zEave);
+      cylinder(group, 0.075, s.x1 - s.x0 + 0.3, m.gutter, T.cx(s.x0, s.x1), yEave - 0.12, T.z(zEave), 8, true);
+    }
     cylinder(group, 0.075, f2.x1 - f2.x0 + 0.3, m.gutter, T.cx(f2.x0, f2.x1), L.eave2 - 0.12, T.z(-B.eave.main), 8, true);
     cylinder(group, 0.075, f2.x1 - f2.x0 + 0.3, m.gutter, T.cx(f2.x0, f2.x1), L.eave2 - 0.12, T.z(f2.depth + B.eave.main), 8, true);
-    [[0.25, B.hirayaEaveSouth, L.eaveHigh], [f2.x0 - 0.25, B.hirayaEaveSouth, L.eaveHigh],
-     [f2.x0 + 0.25, -B.eave.main, L.eave2], [f2.x1 - 0.25, -B.eave.main, L.eave2]]
-      .forEach(([lx, lz, top]) => cylinder(group, 0.055, top - 0.5, m.gutter, T.x(lx), (top - 0.5) / 2 + 0.4, T.z(lz), 8));
+    // 縦樋（竪樋）：平屋各区画の南東角のみ。2階北面は図面に竪樋の記載がないため設置しない。
+    hiraSegments.forEach(s => {
+      const zEave = s.depth + B.eave.south, yEave = y(zEave);
+      cylinder(group, 0.055, yEave - 0.5, m.gutter, T.x(s.x1 - 0.25), (yEave - 0.5) / 2 + 0.4, T.z(zEave), 8);
+    });
 
     // 開口部
     B.openings.forEach(o => addOpening(group, B, o, m, tag));
@@ -207,11 +256,6 @@
     const porchX = B.doorX - B.origin.x;
     mass(group, B, m.foundation, porchX - 0.78, porchX + 0.78, -0.95, 0, L.gl, L.fl1 - 0.14, false);
     mass(group, B, m.roof, porchX - 0.95, porchX + 0.95, -1.05, 0.05, L.fl1 + 2.55, L.fl1 + 2.67, false);
-
-    // エコキュート2台（居住棟370L・民泊棟460L）を南東の下屋脇と平屋南に仮置き
-    [[10.6, 6.2], [18.2, 8.15]].forEach(([lx, lz]) => {
-      mass(group, B, m.trim, lx - 0.32, lx + 0.32, lz - 0.32, lz + 0.32, 0.12, 2.05, true);
-    });
   }
 
   global.createBuildingModel = function createBuildingModel(options) {
