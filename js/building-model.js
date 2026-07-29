@@ -232,9 +232,13 @@
     // 南東の下屋（南土間 = 畑からの動線）。2階の南面(z=f2.depth)から、
     // 2階に覆われない南側の張り出し部分（doma.depth+南軒 まで）を覆う小庇。
     const doma = B.floor1[B.floor1.length - 1];
-    const domaStartY = L.eave2 - (L.eave2 - L.eaveLow) * 0.35; // 2階南壁下端付近から立ち下がる仮の接続高さ
+    const domaRun = doma.depth + B.eave.south - f2.depth;
+    // 南軒の屋根下面が直下の1階ボリューム上端（FL2）へ接する高さまで下げる。
+    // 北側は片流れ勾配分だけ高くし、2階南壁へ自然に取り付ける。
+    const domaEndY = L.fl2 + 0.08;
+    const domaStartY = domaEndY + domaRun * B.pitch.hiraya;
     slopeRoof(group, B, m.roof, doma.x0 - B.eave.gable, doma.x1 + B.eave.gable,
-      f2.depth, domaStartY, doma.depth + B.eave.south, domaStartY - (doma.depth + B.eave.south - f2.depth) * B.pitch.hiraya, 0.14);
+      f2.depth, domaStartY, doma.depth + B.eave.south, domaEndY, 0.14);
 
     // 雨樋：平屋部は区画ごとの軒先に沿って設置、2階部は南北軒に設置
     for (const s of hiraSegments) {
