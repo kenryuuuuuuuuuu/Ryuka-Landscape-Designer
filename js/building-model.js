@@ -42,9 +42,13 @@
 
   // ---- 開口部 ----
   function addOpening(group, B, o, materials, tag) {
-    const T = makeXf(B), seg = segmentAt(B, o.lx);
+    // 2階の壁は floor2.depth（6.370m）で一定。1階floor1区画は南面が段状で
+    // depthが区画ごとに異なる（南土間側は7.735m）ため、階を混同すると
+    // 2階窓が実際の壁面より外側（南）へ飛び出す。必ず該当階のdepthを使う。
+    const T = makeXf(B);
+    const depth = o.level === 2 ? B.floor2.depth : segmentAt(B, o.lx).depth;
     const outward = o.face === 'S' ? 1 : -1;
-    const lz = o.face === 'S' ? seg.depth : 0;
+    const lz = o.face === 'S' ? depth : 0;
     const z = T.z(lz) + outward * 0.09;
     const base = (o.level === 2 ? B.levels.fl2 : B.levels.fl1);
     const y = base + o.sill + o.h / 2;
@@ -91,10 +95,11 @@
     });
     slopeRoof(group, B, m.planRoof, f2.x0 - 0.2, f2.x1 + 0.2, -B.eave.main, L.eave2, f2.depth / 2, L.ridge, 0.1);
     slopeRoof(group, B, m.planRoof, f2.x0 - 0.2, f2.x1 + 0.2, f2.depth / 2, L.ridge, f2.depth + B.eave.main, L.eave2, 0.1);
-    slopeRoof(group, B, m.planRoof, 0, f2.x0, -B.eave.north, L.eaveHigh, B.hirayaEaveSouth, L.eaveLow, 0.1);
+    slopeRoof(group, B, m.planRoof, 0, f2.x0, -B.eave.north, L.eaveLow, B.hirayaEaveSouth, L.eaveHigh, 0.1);
     B.openings.forEach(o => {
-      const seg = segmentAt(B, o.lx), T = makeXf(B);
-      const outward = o.face === 'S' ? 1 : -1, lz = o.face === 'S' ? seg.depth : 0;
+      const T = makeXf(B);
+      const depth = o.level === 2 ? B.floor2.depth : segmentAt(B, o.lx).depth;
+      const outward = o.face === 'S' ? 1 : -1, lz = o.face === 'S' ? depth : 0;
       const base = (o.level === 2 ? B.levels.fl2 : B.levels.fl1);
       box(group, o.w, o.h, 0.04, o.kind === 'door' ? m.planDoor : m.planOpening,
         T.x(o.lx), base + o.sill + o.h / 2, T.z(lz) + outward * 0.06, false);
@@ -112,7 +117,7 @@
     B.floor1.forEach(s => mass(group, B, m.foundation, s.x0, s.x1, 0, s.depth, L.gl, L.fl1));
     B.floor1.forEach(s => mass(group, B, m.metal, s.x0, s.x1, -0.01, s.depth + 0.01, L.fl1 - 0.04, L.fl1 + 0.035, false));
 
-    // 1階壁（平屋部は片流れのため南低・北高、2階部の下は2階軒高まで別途）
+    // 1階壁（平屋部は片流れのため南高・北低、2階部の下は2階軒高まで別途）
     B.floor1.forEach((s, i) => {
       const twoStory = s.x0 >= f2.x0 - 1e-6;
       const top = twoStory ? L.fl2 : L.eaveLow;
@@ -124,16 +129,17 @@
       });
     });
     // 平屋部の妻壁（片流れの立ち上がり分）
+    // 片流れは南（畑側）が高く、北（進入路側）が低い。
     for (const s of B.floor1) {
       if (s.x0 >= f2.x0 - 1e-6) continue;
-      const y = lz => L.eaveHigh - (lz + B.eave.north) * B.pitch.hiraya;
+      const y = lz => L.eaveLow + (lz + B.eave.north) * B.pitch.hiraya;
       const yN = y(0), yS = y(s.depth);
       const shape = new THREE.Shape();
       shape.moveTo(0, L.eaveLow); shape.lineTo(s.depth, L.eaveLow);
       shape.lineTo(s.depth, yS); shape.lineTo(0, yN); shape.closePath();
       for (const [lx, dir] of [[s.x0, -1], [s.x1, 1]]) {
         const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), m.wall);
-        mesh.rotation.y = Math.PI / 2; mesh.position.set(T.x(lx) + dir * 0.002, 0, T.z(0));
+        mesh.rotation.y = -Math.PI / 2; mesh.position.set(T.x(lx) + dir * 0.002, 0, T.z(0));
         mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
       }
       mass(group, B, m.wall, s.x0, s.x1, 0, 0.16, L.eaveLow, yN, true);
@@ -153,18 +159,18 @@
       shape.lineTo(f2.depth / 2, L.ridge); shape.closePath();
       for (const [lx, dir] of [[f2.x0, -1], [f2.x1, 1]]) {
         const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), m.wall);
-        mesh.rotation.y = Math.PI / 2; mesh.position.set(T.x(lx) + dir * 0.002, 0, T.z(0));
+        mesh.rotation.y = -Math.PI / 2; mesh.position.set(T.x(lx) + dir * 0.002, 0, T.z(0));
         mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
       }
     }
 
-    // 屋根：平屋部＝1.5寸片流れ（北高・南低）／2階部＝3寸切妻（棟は東西）
+    // 屋根：平屋部＝1.5寸片流れ（南高・北低、畑に向かって上がる）／2階部＝3寸切妻（棟は東西）
     const hira = slopeRoof(group, B, m.roof, -B.eave.gable, f2.x0 + B.eave.gable,
-      -B.eave.north, L.eaveHigh, B.hirayaEaveSouth, L.eaveLow, 0.18);
+      -B.eave.north, L.eaveLow, B.hirayaEaveSouth, L.eaveHigh, 0.18);
     tag(hira, {
       title: '平屋部 片流れ屋根（1.5寸）',
-      body: '南側の軒先は建築面積求積図から逆算した7.280mライン。壁より最大1.82m張り出し、畑向きの軒下空間になる。',
-      meta: [['勾配', '10:1.5'], ['南軒高', `GL+${L.eaveLow}m`], ['北軒高', `GL+${L.eaveHigh}m`], ['軒下面積', `約${B.areas.roofedNonFloor}㎡`]]
+      body: '畑（南）に向かって上がる片流れ。南側の軒先は建築面積求積図から逆算した7.280mライン。壁より最大1.82m張り出し、畑向きの軒下空間になる。',
+      meta: [['勾配', '10:1.5'], ['北軒高', `GL+${L.eaveLow}m`], ['南軒高（畑側）', `GL+${L.eaveHigh}m`], ['軒下面積', `約${B.areas.roofedNonFloor}㎡`]]
     });
     const rn = slopeRoof(group, B, m.roof, f2.x0 - B.eave.gable, f2.x1 + B.eave.gable,
       -B.eave.main, L.eave2, f2.depth / 2, L.ridge, 0.18);
@@ -180,16 +186,17 @@
     mass(group, B, m.metal, f2.x0 - B.eave.gable, f2.x1 + B.eave.gable,
       f2.depth / 2 - 0.11, f2.depth / 2 + 0.11, L.ridge - 0.09, L.ridge + 0.07, false);
 
-    // 南東の下屋（南土間 = 畑からの動線）
+    // 南東の下屋（南土間 = 畑からの動線）。主屋根の南端(畑側)は最も高いeaveHighを基準に、
+    // そこからさらに南へ張り出す分だけ下げる小庇として構成。
     const doma = B.floor1[B.floor1.length - 1];
     slopeRoof(group, B, m.roof, doma.x0 - B.eave.gable, doma.x1 + B.eave.gable,
-      f2.depth, L.eaveLow, doma.depth + B.eave.south, L.eaveLow - (doma.depth + B.eave.south - f2.depth) * B.pitch.hiraya, 0.14);
+      f2.depth, L.eaveHigh, doma.depth + B.eave.south, L.eaveHigh - (doma.depth + B.eave.south - f2.depth) * B.pitch.hiraya, 0.14);
 
-    // 雨樋（平屋南軒・2階南北軒）
-    cylinder(group, 0.075, f2.x0 + 0.3, m.gutter, T.cx(0, f2.x0), L.eaveLow - 0.12, T.z(B.hirayaEaveSouth), 8, true);
+    // 雨樋（平屋南軒・2階南北軒）。平屋南軒（畑側）が最高点になったため eaveHigh を使用。
+    cylinder(group, 0.075, f2.x0 + 0.3, m.gutter, T.cx(0, f2.x0), L.eaveHigh - 0.12, T.z(B.hirayaEaveSouth), 8, true);
     cylinder(group, 0.075, f2.x1 - f2.x0 + 0.3, m.gutter, T.cx(f2.x0, f2.x1), L.eave2 - 0.12, T.z(-B.eave.main), 8, true);
     cylinder(group, 0.075, f2.x1 - f2.x0 + 0.3, m.gutter, T.cx(f2.x0, f2.x1), L.eave2 - 0.12, T.z(f2.depth + B.eave.main), 8, true);
-    [[0.25, B.hirayaEaveSouth, L.eaveLow], [f2.x0 - 0.25, B.hirayaEaveSouth, L.eaveLow],
+    [[0.25, B.hirayaEaveSouth, L.eaveHigh], [f2.x0 - 0.25, B.hirayaEaveSouth, L.eaveHigh],
      [f2.x0 + 0.25, -B.eave.main, L.eave2], [f2.x1 - 0.25, -B.eave.main, L.eave2]]
       .forEach(([lx, lz, top]) => cylinder(group, 0.055, top - 0.5, m.gutter, T.x(lx), (top - 0.5) / 2 + 0.4, T.z(lz), 8));
 
