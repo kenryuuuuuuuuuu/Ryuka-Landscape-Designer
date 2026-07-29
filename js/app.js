@@ -20,7 +20,9 @@ function validateFixedSiteData(){
  required.forEach(key=>{if(DATA?.[key]===undefined||DATA[key]===null)errors.push(`必須データ「${key}」がありません`)});
  if(DATA?.site?.length!==5)errors.push(`敷地点数が5点ではありません（${DATA?.site?.length??0}点）`);
  ['cx','cz','w','d'].forEach(key=>{if(!Number.isFinite(DATA?.building?.[key]))errors.push(`必須データ「building.${key}」がありません`)});
- if(DATA?.building?.w!==19.11||DATA?.building?.d!==7.28)errors.push('建物寸法が19.11 × 7.28mではありません');
+ if(DATA?.building?.w!==19.11||DATA?.building?.d!==7.735)errors.push('建物外接寸法が19.110 × 7.735mではありません');
+ if(!Array.isArray(DATA?.building?.floor1)||DATA.building.floor1.length!==4)errors.push('1階footprintが4区間ではありません');
+ if(Math.abs(DATA.building.floor1.reduce((s,f)=>s+(f.x1-f.x0)*f.depth,0)-115.51)>0.05)errors.push('1階床面積が図面値115.51㎡と一致しません');
  if(!Number.isFinite(DATA?.siteArea)||Math.abs(DATA.siteArea-988.87)>.05)errors.push(`固定敷地面積が約988.87㎡ではありません（${Number.isFinite(DATA?.siteArea)?DATA.siteArea.toFixed(2):'未設定'}㎡）`);
  const calculatedArea=DATA?.site?.length>=3?polyArea(DATA.site):NaN;
  if(!Number.isFinite(calculatedArea)||Math.abs(calculatedArea-988.87)>.05)errors.push(`敷地面積が約988.87㎡ではありません（${Number.isFinite(calculatedArea)?calculatedArea.toFixed(2):'計算不能'}㎡）`);

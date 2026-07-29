@@ -18,9 +18,51 @@
     ],
     edgeLengths: [20.579, 33.366, 19.974, 31.374, 17.322],
     building: {
-      cx: 2.209, cz: -9.449, w: 19.11, d: 7.28, wallH: 6.0, ridgeH: 7.6,
-      southWindows: [{ x: -4.0, w: 2.7 }, { x: 1.0, w: 2.1 }, { x: 6.6, w: 1.8 }],
-      northWindows: [-4.5, 1.5, 6.8], doorX: 9.6
+      // === 外接直方体（衝突判定・環境モデル・互換用）===
+      cx: 2.209, cz: -9.2215, w: 19.110, d: 7.735,
+      wallH: 6.300, ridgeH: 7.423,
+
+      // === 天領住宅 Ver5 実施図面（2026年7月）に基づく正式形状 ===
+      // 建物北西角のワールド座標。北面は19.110m全長にわたり直線。
+      origin: { x: -7.346, z: -13.089 },
+      // 高さは全てGL基準(m)。基礎高0.500 / 1階軒高2.900 / 2階軒高2.900 / 棟+1.123
+      levels: { gl: 0, fl1: 0.500, fl2: 3.232, eaveLow: 3.400, eaveHigh: 4.567, eave2: 6.300, ridge: 7.423 },
+      pitch: { hiraya: 0.15, main: 0.30 },
+      eave: { north: 0.500, south: 0.500, gable: 0.220, main: 0.558 },
+
+      // 1階外壁footprint（北面基準・西→東）: 1階床面積求積図 A1〜A4
+      floor1: [
+        { x0: 0.000,  x1: 9.100,  depth: 5.460, area: 49.686, use: '民泊棟（玄関・洋室・LDK15.73・水回り）' },
+        { x0: 9.100,  x1: 12.740, depth: 5.915, area: 21.531, use: 'ヌック・自宅玄関・北土間' },
+        { x0: 12.740, x1: 16.380, depth: 6.370, area: 23.187, use: '自宅LDK32.09・階段' },
+        { x0: 16.380, x1: 19.110, depth: 7.735, area: 21.117, use: '水回り・南土間（畑動線）' }
+      ],
+      // 2階: 2階床面積求積図 A1 (6.370 × 6.370) を東端に配置
+      floor2: { x0: 12.740, x1: 19.110, depth: 6.370, area: 40.577 },
+      // 平屋部の南に張り出す屋根の軒先ライン（建築面積求積図から逆算）
+      hirayaEaveSouth: 7.280,
+
+      areas: { kenchiku: 139.08, floor1: 115.51, floor2: 40.57, nobeyuka: 156.08, roofedNonFloor: 23.57 },
+      appliedSiteArea: 319.67,
+
+      // 開口部（lx=建物西端からの局所座標、sillは1FL基準）
+      // ※位置は平面図の建具記号からの読み取り。寸法は呼称からの推定で、建具表での確定待ち。
+      openings: [
+        { face: 'N', lx: 1.820, w: 0.90, h: 2.30, sill: 0,     kind: 'door',   id: 'AD0923',  label: '民泊 玄関' },
+        { face: 'N', lx: 5.000, w: 1.65, h: 0.90, sill: 1.100, kind: 'window', id: 'AW16509', label: '民泊 北窓' },
+        { face: 'N', lx: 10.000, w: 0.90, h: 2.30, sill: 0,    kind: 'door',   id: 'AD0923',  label: '自宅 玄関' },
+        { face: 'N', lx: 11.400, w: 0.69, h: 0.90, sill: 1.100, kind: 'window', id: 'AW06903', label: '北土間 窓' },
+        { face: 'S', lx: 2.000, w: 0.65, h: 2.00, sill: 0.050, kind: 'window', id: 'AW06520', label: '民泊 縦すべり' },
+        { face: 'S', lx: 4.550, w: 2.25, h: 0.90, sill: 0.900, kind: 'window', id: 'AW22509', label: '民泊リビング 腰窓（畑向き）' },
+        { face: 'S', lx: 8.500, w: 1.60, h: 2.20, sill: 0.050, kind: 'window', id: 'AW16022', label: '掃き出し窓' },
+        { face: 'S', lx: 13.500, w: 1.60, h: 2.20, sill: 0.050, kind: 'window', id: 'AW16022', label: '自宅LDK 掃き出し' },
+        { face: 'S', lx: 17.800, w: 0.60, h: 0.90, sill: 1.100, kind: 'window', id: 'AW06009', label: '南土間 窓' },
+        { face: 'N', lx: 14.300, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 北窓' },
+        { face: 'N', lx: 17.400, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 北窓' },
+        { face: 'S', lx: 15.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室13.25 南窓' },
+        { face: 'S', lx: 18.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室 南窓' }
+      ],
+      doorX: 2.654,
     },
     siteArea: 988.87,
     takuchiArea: 319,
