@@ -278,12 +278,6 @@
     }
     cylinder(group, 0.075, f2.x1 - f2.x0 + 0.3, m.gutter, T.cx(f2.x0, f2.x1), L.eave2 - 0.12, T.z(-B.eave.main), 8, true);
     cylinder(group, 0.075, f2.x1 - f2.x0 + 0.3, m.gutter, T.cx(f2.x0, f2.x1), L.eave2 - 0.12, T.z(f2.depth + B.eave.main), 8, true);
-    // 縦樋（竪樋）：平屋各区画の南東角のみ。2階北面は図面に竪樋の記載がないため設置しない。
-    hiraSegments.forEach(s => {
-      const zEaveAbs = s.z0 + s.depth + B.eave.south, yEave = yAt(zEaveAbs);
-      cylinder(group, 0.055, yEave - 0.5, m.gutter, T.x(s.x1 - 0.25), (yEave - 0.5) / 2 + 0.4, T.z(zEaveAbs), 8);
-    });
-
     // 開口部
     B.openings.forEach(o => addOpening(group, B, o, m, tag));
 
