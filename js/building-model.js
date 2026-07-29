@@ -30,6 +30,28 @@
     const T = makeXf(B);
     return box(group, x1 - x0, y1 - y0, z1 - z0, mat, T.cx(x0, x1), (y0 + y1) / 2, T.cz(z0, z1), cast);
   }
+  // 上端がz方向へ傾斜する壁ボリューム。下屋直下など、矩形壁では屋根と干渉する箇所に使う。
+  function slopedMass(group, B, mat, x0, x1, z0, z1, y0, yA, yB, cast = true) {
+    const T = makeXf(B);
+    const xa = T.x(x0), xb = T.x(x1), za = T.z(z0), zb = T.z(z1);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+      xa, y0, za, xb, y0, za, xb, y0, zb, xa, y0, zb,
+      xa, yA, za, xb, yA, za, xb, yB, zb, xa, yB, zb
+    ], 3));
+    geometry.setIndex([
+      0, 1, 2, 0, 2, 3,
+      4, 6, 5, 4, 7, 6,
+      0, 4, 5, 0, 5, 1,
+      3, 2, 6, 3, 6, 7,
+      0, 3, 7, 0, 7, 4,
+      1, 5, 6, 1, 6, 2
+    ]);
+    geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, mat);
+    mesh.castShadow = cast; mesh.receiveShadow = true;
+    group.add(mesh); return mesh;
+  }
   // 傾斜屋根面: 局所[x0,x1]幅、lz=zA(高さyA)→lz=zB(高さyB) の板
   function slopeRoof(group, B, mat, x0, x1, zA, yA, zB, yB, thickness = 0.16) {
     const T = makeXf(B), run = zB - zA, rise = yB - yA;
@@ -160,7 +182,20 @@
     B.floor1.forEach((s, i) => {
       const twoStory = s.x0 >= f2.x0 - 1e-6;
       const top = twoStory ? L.fl2 : L.eaveLow;
-      const wall = mass(group, B, m.wall, s.x0, s.x1, s.z0, s.z0 + s.depth, L.fl1, top);
+      const south = s.z0 + s.depth;
+      const floor2South = f2.z0 + f2.depth;
+      let wall;
+      if (twoStory && south > floor2South + 1e-6) {
+        // A4の南土間は2階外壁より南へ張り出す。2階直下と張り出し部を分離し、
+        // 張り出し壁の上端を低い下屋の下面へ沿わせて、壁が屋根を突き抜けないようにする。
+        wall = mass(group, B, m.wall, s.x0, s.x1, s.z0, floor2South, L.fl1, top);
+        const canopyStartY = L.fl1 + 2.30;
+        const canopyWallEndY = canopyStartY - (south - floor2South) * B.pitch.hiraya;
+        slopedMass(group, B, m.wall, s.x0, s.x1, floor2South, south,
+          L.fl1, canopyStartY - 0.08, canopyWallEndY - 0.08);
+      } else {
+        wall = mass(group, B, m.wall, s.x0, s.x1, s.z0, south, L.fl1, top);
+      }
       tag(wall, {
         title: `1階 区間${i + 1}｜${s.use}`,
         body: twoStory ? '2階が乗る東棟の1階部分。' : '平屋部。南面はA1〜A3共通で直線、北面が段状に後退する。',
