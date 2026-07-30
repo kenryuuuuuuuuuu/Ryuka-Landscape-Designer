@@ -7,8 +7,8 @@
 const DATA = window.DATA;
 
 const STATE={mode:'real',doy:188,tod:720,northOff:0,playing:false,sunPath:true,context:true,measure:false,quality:['auto','high','low'].includes(localStorage.getItem('ryuka-render-quality'))?localStorage.getItem('ryuka-render-quality'):'auto',modelDetail:['auto','detailed','simple'].includes(localStorage.getItem('ryuka-model-detail'))?localStorage.getItem('ryuka-model-detail'):'auto',
- layers:{facilities:true,paths:true,guestBeds:true,herbs:true,rotations:true,trees:true,lawn:true,labels:true},
- guides:{labels:true,grid:false,boundary:true,crowns:false},season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true,activePlan:'A'}
+ layers:{facilities:true,paths:true,guestBeds:true,herbs:true,rotations:true,trees:true,lawn:true,labels:false},
+ guides:{labels:false,grid:false,boundary:true,crowns:false},season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true,activePlan:'A'}
 
 // ---------- utilities ----------
 const $=id=>document.getElementById(id);
