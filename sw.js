@@ -1,4 +1,4 @@
-const CACHE = 'ryuka-landscape-v4-8-0-object-layout-editor-20260714';
+const CACHE = 'ryuka-landscape-v4-8-0-tenryo-v5-20260730';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './vendor/three.min.js', './vendor/GLTFLoader.js', './data/fixed-site-data.js', './js/ground-materials.js', './js/building-materials.js', './js/building-model.js', './js/plant-materials.js', './js/plant-models.js', './js/environment-materials.js', './js/environment-model.js', './js/object-catalog.js', './js/object-models.js', './js/design-state.js', './js/plant-editor.js', './js/object-editor.js', './js/asset-catalog.js', './js/asset-loader.js', './js/app.js', './assets/models/tool-shed-high.glb', './assets/models/tool-shed-low.glb', './assets/models/garden-bench-high.glb', './assets/models/garden-bench-low.glb', './assets/models/raised-bed-frame-high.glb', './assets/models/raised-bed-frame-low.glb', './assets/models/README.md'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
@@ -10,6 +10,24 @@ self.addEventListener('activate', event => {
 });
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  const isAppSource = url.origin === self.location.origin
+    && (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('.js'));
+
+  if (isAppSource) {
+    event.respondWith(fetch(event.request).then(response => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(event.request, copy));
+      }
+      return response;
+    }).catch(() => (
+      caches.match(event.request)
+        .then(hit => hit || (event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error()))
+    )));
+    return;
+  }
+
   event.respondWith(caches.match(event.request).then(hit => hit || fetch(event.request).then(response => {
     if (response.ok && new URL(event.request.url).origin === self.location.origin) {
       const copy = response.clone();
