@@ -142,7 +142,8 @@
       }
 
       let warning = '';
-      if (data.paths.some(path => pointInPolygon(x, z, path) || boundaryPoints.some(point => pointInPolygon(point.x, point.z, path)))) warning = '園路と重なっています';
+      const currentPaths = options.getGroundFeatures?.().filter(feature => feature.kind === 'path').map(feature => global.GROUND_GEOMETRY_UTILS?.buildPathRibbon(feature.points, feature.width)).filter(path => path?.length) || data.paths;
+      if (currentPaths.some(path => pointInPolygon(x, z, path) || boundaryPoints.some(point => pointInPolygon(point.x, point.z, path)))) warning = '園路と重なっています';
       const plants = context?.plants || getPlants();
       if (!warning) for (const plant of plants) {
         const crown = { x: plant.x, z: plant.z, radius: Math.max(0.35, plant.r * 0.72) };

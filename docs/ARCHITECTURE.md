@@ -1,6 +1,6 @@
 # Architecture
 
-Ryuka Landscape Designer v4.8.0 は、GitHub Pagesで配信できる静的なThree.jsアプリケーションです。
+Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThree.jsアプリケーションです。
 
 ## ファイル構成
 
@@ -18,6 +18,9 @@ Ryuka Landscape Designer v4.8.0 は、GitHub Pagesで配信できる静的なThr
 - `js/design-state.js`: 固定植栽・固定設備に対するプラン別差分、追加要素、移行、保存、独立したundo / redo履歴を管理します。
 - `js/plant-editor.js`: 植栽の選択、配置検証、PCドラッグ、キーボード・モバイル編集操作を担当します。
 - `js/object-editor.js`: 外構設備・家具の選択、OBB配置検証、PCドラッグ、キーボード・モバイル編集操作を担当します。
+- `js/ground-feature-catalog.js`: 固定地表12件と追加可能な園路・区画11種類、素材・レイヤー・配置既定値を定義します。
+- `js/ground-feature-models.js`: ポリラインから園路リボンを生成し、単純ポリゴン検証、REAL/PLANモデル、面積・延長集計を提供します。
+- `js/ground-feature-editor.js`: 地表要素と頂点の選択、ドラッグ、幅・素材変更、複製、モバイル操作を担当します。
 - `vendor/GLTFLoader.js`: Three.js r128と同revisionの公式non-module GLTFLoader（MIT）です。
 - `js/asset-catalog.js`: ローカルGLBのURL、基準寸法、影、ライセンス、フォールバックを定義します。
 - `js/asset-loader.js`: URL単位の非同期読込、正規化、prototype/失敗キャッシュ、共有リソースを管理します。
@@ -29,11 +32,17 @@ Ryuka Landscape Designer v4.8.0 は、GitHub Pagesで配信できる静的なThr
 
 ## 読み込み順
 
-`three.min.js` → `GLTFLoader.js` → `fixed-site-data.js` → 既存material/model群 → `object-catalog.js` → `object-models.js` → `design-state.js` → `plant-editor.js` → `object-editor.js` → `asset-catalog.js` → `asset-loader.js` → `app.js` の順です。`app.js`は起動直後に固定データを検証し、異常時はコンソールと画面上に警告します。
+`three.min.js` → `GLTFLoader.js` → `fixed-site-data.js` → 既存material/model群 → `object-catalog.js` → `object-models.js` → `design-state.js` → `plant-editor.js` → `object-editor.js` → `asset-catalog.js` → `asset-loader.js` → `ground-feature-catalog.js` → `ground-feature-models.js` → `ground-feature-editor.js` → `app.js` の順です。`app.js`は起動直後に固定データを検証し、異常時はコンソールと画面上に警告します。
 
 ## 状態と固定データ
 
 季節、成長年数、表示レイヤー、カメラ、PLAN A/Bは実行時状態です。植栽編集は既存木を`base-tree-N`、外構編集は固定設備を`base-object-*`で識別し、移動を`overrides`、追加要素を`additions`としてプラン別に保存します。`plantLayout`と`objectLayout`は別データで、undo / redo履歴もプランごと・編集種別ごとに最大50操作です。編集・読み込み・初期化のいずれも`window.DATA`へ書き込まず、空の差分では固定値からv4.7と同じ初期配置を解決します。
+
+地表編集は`groundLayout`へ固定要素の`overrides`と追加要素の`additions`をPLAN A/B別に保存します。固定12件は`DATA.paths`、作業ヤード、輪作区画、ハーブ帯、芝生・クローバーから実行時に決定的に解決され、固定データへIDや編集結果を書き戻しません。園路は中心線2〜24点と幅からbutt cap・miter制限付きリボンを生成し、区画は3〜24点の単純ポリゴンとして検証します。
+
+地表rootは重心をローカル原点とし、子Meshと輪郭だけをローカル座標で保持します。頂点ドラッグは対象要素だけをプレビューし、確定時に1履歴として保存します。植栽・設備・地表の履歴は完全に分離され、各プラン・各種別につき最大50操作です。編集モードも相互排他で、計測・一人称歩行・スマホジョイスティックと同時に動作しません。
+
+地表マテリアルは既存`GROUND`資源を再利用し、防草シートとPLAN識別色だけを共有資源として追加します。再構築では動的GeometryとラベルTextureだけを破棄し、共有Material/Texture、環境Light、GLB prototypeを維持します。現在プランの園路延長・園路面積・素材別区画面積は設計比較用の概算として集計します。
 
 外構モデルは中心がローカル原点の親Groupを持ち、移動・回転は親transformだけへ適用します。井戸・ポンプ・洗い場は1つの複合設備、パーゴラ・棚・ベンチは1つの複合設備として扱います。追加設備は削除可能ですが、固定設備は削除せず元位置へ戻せます。配置検証は回転矩形または円形footprintを使い、敷地外・建物・他設備との衝突を禁止し、園路と樹冠の重なりは警告します。
 
