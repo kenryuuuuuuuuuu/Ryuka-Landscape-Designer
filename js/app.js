@@ -7,8 +7,8 @@
 const DATA = window.DATA;
 
 const STATE={mode:'real',doy:188,tod:720,northOff:0,playing:false,sunPath:true,context:true,measure:false,quality:['auto','high','low'].includes(localStorage.getItem('ryuka-render-quality'))?localStorage.getItem('ryuka-render-quality'):'auto',modelDetail:['auto','detailed','simple'].includes(localStorage.getItem('ryuka-model-detail'))?localStorage.getItem('ryuka-model-detail'):'auto',
- layers:{facilities:true,paths:true,guestBeds:true,herbs:true,rotations:true,trees:true,lawn:true,labels:true},
- guides:{labels:true,grid:false,boundary:true,crowns:false},season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true,activePlan:'A'}
+ layers:{facilities:true,paths:true,guestBeds:true,herbs:true,rotations:true,trees:true,lawn:true,labels:false},
+ guides:{labels:false,grid:false,boundary:true,crowns:false},season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true,activePlan:'A'}
 
 // ---------- utilities ----------
 const $=id=>document.getElementById(id);
@@ -20,7 +20,9 @@ function validateFixedSiteData(){
  required.forEach(key=>{if(DATA?.[key]===undefined||DATA[key]===null)errors.push(`必須データ「${key}」がありません`)});
  if(DATA?.site?.length!==5)errors.push(`敷地点数が5点ではありません（${DATA?.site?.length??0}点）`);
  ['cx','cz','w','d'].forEach(key=>{if(!Number.isFinite(DATA?.building?.[key]))errors.push(`必須データ「building.${key}」がありません`)});
- if(DATA?.building?.w!==19.11||DATA?.building?.d!==7.28)errors.push('建物寸法が19.11 × 7.28mではありません');
+ if(DATA?.building?.w!==19.11||DATA?.building?.d!==7.735)errors.push('建物外接寸法が19.110 × 7.735mではありません');
+ if(!Array.isArray(DATA?.building?.floor1)||DATA.building.floor1.length!==4)errors.push('1階footprintが4区間ではありません');
+ if(Math.abs(DATA.building.floor1.reduce((s,f)=>s+(f.x1-f.x0)*f.depth,0)-115.51)>0.05)errors.push('1階床面積が図面値115.51㎡と一致しません');
  if(!Number.isFinite(DATA?.siteArea)||Math.abs(DATA.siteArea-988.87)>.05)errors.push(`固定敷地面積が約988.87㎡ではありません（${Number.isFinite(DATA?.siteArea)?DATA.siteArea.toFixed(2):'未設定'}㎡）`);
  const calculatedArea=DATA?.site?.length>=3?polyArea(DATA.site):NaN;
  if(!Number.isFinite(calculatedArea)||Math.abs(calculatedArea-988.87)>.05)errors.push(`敷地面積が約988.87㎡ではありません（${Number.isFinite(calculatedArea)?calculatedArea.toFixed(2):'計算不能'}㎡）`);

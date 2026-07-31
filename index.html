@@ -149,7 +149,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
   <section class="panel-page" data-page="layers">
     <div class="section"><h3>LANDSCAPE LAYERS</h3><div class="stack" id="layerList"></div></div>
     <div class="section"><h3>GUIDES</h3><div class="stack">
-      <button class="layer-btn on" data-guide="labels"><span class="layer-row"><span class="layer-dot" style="background:#f0e5cd"></span><span class="layer-label">ゾーン名・樹種</span><span class="switch"></span></span></button>
+      <button class="layer-btn" data-guide="labels"><span class="layer-row"><span class="layer-dot" style="background:#f0e5cd"></span><span class="layer-label">ゾーン名・樹種</span><span class="switch"></span></span></button>
       <button class="layer-btn" data-guide="grid"><span class="layer-row"><span class="layer-dot" style="background:#78a8b1"></span><span class="layer-label">5mグリッド</span><span class="switch"></span></span></button>
       <button class="layer-btn on" data-guide="boundary"><span class="layer-row"><span class="layer-dot" style="background:#f5efe3"></span><span class="layer-label">境界・分筆線</span><span class="switch"></span></span></button>
       <button class="layer-btn" data-guide="crowns"><span class="layer-row"><span class="layer-dot" style="background:#86a860"></span><span class="layer-label">将来樹冠ガイド</span><span class="switch"></span></span></button>
@@ -189,7 +189,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
     </div>
     <div class="section"><h3>MEASURE</h3><div class="grid2"><button class="action" id="measureBtn">距離を計測</button><button class="action" id="clearMeasureBtn">計測を消去</button></div></div>
     <div class="section"><h3>SITE DATA</h3><div class="data-card"><dl>
-      <dt>敷地面積</dt><dd id="siteArea">988.87㎡</dd><dt>北側宅地</dt><dd id="northArea">319.0㎡</dd><dt>南側畑</dt><dd id="fieldArea">669.9㎡</dd><dt>建物寸法</dt><dd>19.11 × 7.28m</dd><dt>座標系</dt><dd>x=東 / z=南</dd>
+      <dt>敷地面積</dt><dd id="siteArea">988.87㎡</dd><dt>北側宅地</dt><dd id="northArea">319.0㎡</dd><dt>南側畑</dt><dd id="fieldArea">669.9㎡</dd><dt>建物寸法</dt><dd>19.11 × 7.735m</dd><dt>座標系</dt><dd>x=東 / z=南</dd>
     </dl></div></div>
     <div class="section"><h3>BOUNDARY ADJUSTMENT</h3><div class="range-row"><label>分筆線</label><input id="splitPos" type="range" min="0" max="1000" value="500"><output id="splitOut">±0.0m</output></div><p class="section-note">元HTMLと同様の検討用調整です。初期値が宅地319㎡となる推定位置です。</p></div>
     <div class="section"><h3>PLAN A / B</h3><div class="grid2"><button class="action on" id="planABtn">プランA</button><button class="action" id="planBBtn">プランB</button></div><div class="grid2" style="margin-top:7px"><button class="action" id="savePlanBtn">現在案を保存</button><button class="action" id="resetPlanBtn">案を初期化</button></div><p class="section-note">季節・年数・密度・輪作パターンを案ごとに保存し、同一視点で切り替えて比較します。</p></div>
