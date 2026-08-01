@@ -114,7 +114,7 @@ function flyTo(v){
  const presets={
   birdNE:{target:[0,1,1],r:72,a:Math.PI*.76,p:.82},birdSW:{target:[0,1,1],r:68,a:-Math.PI*.28,p:.86},south:{target:[1,2,0],r:62,a:0,p:1.18},
   guestWindow:{pos:[-4,1.3,-5.45],target:[-4.8,.9,4.0]},harvest:{pos:[-8,1.65,4.6],target:[1,1.1,5]},rotation:{pos:[7,1.65,6.0],target:[2,1.1,-2]},
-  pergola:{pos:[-6.5,1.15,13.4],target:[1.5,2.0,-7]},yard:{pos:[17,1.65,-.2],target:[3,1.2,3]}
+  pergola:{pos:[-6.5,1.15,13.4],target:[1.5,2.0,-7]},yard:{pos:[12,1.65,-1.5],target:[17,1.2,-1.5]}
  };
  const q=presets[v]||presets.birdNE;
  if(q.pos){const px=q.pos[0],py=q.pos[1],pz=q.pos[2],tx=q.target[0],ty=q.target[1],tz=q.target[2];cam.target.set(tx,ty,tz);const dx=px-tx,dy=py-ty,dz=pz-tz;cam.r=Math.hypot(dx,dy,dz);cam.p=Math.acos(dy/cam.r);cam.a=Math.atan2(dx,dz)}else{cam.target.fromArray(q.target);cam.r=q.r;cam.a=q.a;cam.p=q.p}
@@ -170,7 +170,7 @@ function updateAssetStatus(status){
 let lastAppliedAssetSignature='';ASSET_MANAGER.onStatusChange(status=>{registerAssetSharedResources();updateAssetStatus(status);const signature=`${status.ready}:${status.failed}`;if(status.loading===0&&status.ready+status.failed===status.total&&signature!==lastAppliedAssetSignature){lastAppliedAssetSignature=signature;if(shouldUseDetailedAsset())scheduleAssetBackedRebuild()}});
 
 // ---------- sky, lights, context ----------
-const ENVIRONMENT=createEnvironmentModel({scene,renderer,materials:ENVIRONMENT_MATERIALS,groundMaterial:MATS.surrounding,asphaltMaterial:GROUND.asphalt,data:DATA});
+const ENVIRONMENT=createEnvironmentModel({scene,renderer,materials:ENVIRONMENT_MATERIALS,groundMaterial:MATS.surrounding,data:DATA});
 const contextGroup=ENVIRONMENT.context,sky=ENVIRONMENT.sky,sun=ENVIRONMENT.keyLight,hemi=ENVIRONMENT.hemi,ambient=ENVIRONMENT.ambient;
 function effectiveQuality(){if(STATE.quality!=='auto')return STATE.quality;return innerWidth<=600||/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)?'low':'high'}
 function applyQuality(showToast=false){const q=effectiveQuality(),cap=q==='high'?1.85:1.25;renderer.setPixelRatio(Math.min(devicePixelRatio||1,cap));renderer.setSize(innerWidth,innerHeight);ENVIRONMENT.setQuality(q);document.querySelectorAll('button[data-quality]').forEach(b=>b.classList.toggle('on',b.dataset.quality===STATE.quality));document.body.dataset.quality=q;document.body.dataset.qualityChangeCount=String(ENVIRONMENT.root.userData.qualityChangeCount||0);document.body.dataset.shadowMapDisposeCount=String(ENVIRONMENT.root.userData.shadowMapDisposeCount||0);document.body.dataset.shadowMapSize=String(ENVIRONMENT.keyLight.shadow.mapSize.x);document.body.dataset.mountainSeamMax=String(Math.max(...ENVIRONMENT.mountainGeometries.map(g=>g.userData.seamDistance)));syncAssetVariant();if(showToast)toast(STATE.quality==='auto'?'自動画質に変更':STATE.quality==='high'?'高画質に変更':'省電力画質に変更')}
@@ -411,7 +411,7 @@ document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{setMode(b.dat
 document.querySelectorAll('#workspaceSeg button').forEach(button=>button.onclick=()=>{if(button.dataset.workspace===window.ACTIVE_WORKSPACE)return;plantEditor?.end();objectEditor?.end();groundEditor?.end();if(STATE.measure){STATE.measure=false;$('measureBtn').classList.remove('on');$('measureTip').style.display='none';clearMeasure()}if(cam.mode==='walk')stopWalk();applyWorkspace(button.dataset.workspace);flyTo(WORKSPACES[button.dataset.workspace].defaultCamera||'birdNE');toast(`${WORKSPACES[button.dataset.workspace].label}へ切替`);updateResourceMetrics()});
 function radios(name,handler){document.querySelectorAll(`input[name="${name}"]`).forEach(input=>input.onchange=event=>{if(event.target.checked)handler(event.target.value)})}
 radios('wallColor',value=>{BUILDING.wall.color.set(value);BUILDING.syncWallFlat(value)});
-radios('sugiColor',value=>BUILDING.sugi.color.set(value));
+radios('sugiColor',value=>{BUILDING.sugi.color.set(value);BUILDING.sugi.needsUpdate=true});
 radios('roofColor',value=>BUILDING.roof.color.set(value));
 radios('eastLayout',value=>{STATE.parkingLayout=value;buildParking();toast(`駐車レイアウト${value}へ変更`)});
 $('tgCars').onchange=event=>{STATE.showCars=event.target.checked;buildParking()};$('tgCarport').onchange=event=>{STATE.showCarport=event.target.checked;buildParking()};

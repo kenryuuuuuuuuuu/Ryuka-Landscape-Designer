@@ -127,7 +127,7 @@
       foundation: new THREE.MeshStandardMaterial({ color: 0xb0aea7, map: maps.concrete, bumpMap: maps.concreteHeight, bumpScale: .035, roughness: .96 }),
       roof: new THREE.MeshStandardMaterial({ color: 0xffffff, map: maps.roof, bumpMap: maps.roofHeight, bumpScale: .025, roughness: .72, metalness: .08 }),
       wood: new THREE.MeshStandardMaterial({ color: 0xffffff, map: maps.wood, roughness: .78 }),
-      sugi: new THREE.MeshStandardMaterial({ color: 0xb98a55, map: maps.sugi, bumpMap: maps.sugiHeight, bumpScale: .03, roughness: .9 }),
+      sugi: new THREE.MeshStandardMaterial({ color: 0x5e442e, map: maps.sugi, bumpMap: maps.sugiHeight, bumpScale: .03, roughness: .9 }),
       trim: new THREE.MeshStandardMaterial({ color: 0xd6d2c8, roughness: .76 }),
       metal: new THREE.MeshStandardMaterial({ color: 0x495255, roughness: .42, metalness: .48 }),
       gutter: new THREE.MeshStandardMaterial({ color: 0x394245, roughness: .56, metalness: .25 }),

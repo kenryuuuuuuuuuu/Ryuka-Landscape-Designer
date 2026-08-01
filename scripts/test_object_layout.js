@@ -33,9 +33,10 @@ assert.strictEqual(baseObjects.length, 13, 'base object count');
 assert.strictEqual(new Set(baseObjects.map(item => item.designId)).size, baseObjects.length, 'base IDs are unique');
 assert.deepStrictEqual(
   { x: baseObjects[0].x, z: baseObjects[0].z },
-  DATA.facilities.shed,
+  { x: DATA.facilities.shed.x, z: DATA.facilities.shed.z },
   'shed center comes from fixed data'
 );
+assert(Math.abs(baseObjects[0].rotation + Math.PI / 2) < 1e-12, 'shed base rotation faces the field center');
 assert.deepStrictEqual(
   { x: baseObjects[1].x, z: baseObjects[1].z },
   DATA.guestGarden.bench,
