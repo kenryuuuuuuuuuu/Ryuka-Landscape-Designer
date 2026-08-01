@@ -6,6 +6,7 @@ Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThr
 
 - `index.html`: HTML構造、スタイル、スクリプトの読み込み順を定義します。
 - `data/fixed-site-data.js`: 測量・設計に由来する固定座標と寸法を公開し、再帰的に`Object.freeze`します。
+- `js/workspaces.js`: ワークスペースごとのパネルセクション、描画レイヤー、既定カメラ、KPIを宣言的に定義します。
 - `js/ground-materials.js`: REAL用の地表テクスチャと共有マテリアル、およびPLAN用の単色マテリアルを生成します。
 - `js/building-materials.js`: 建物外観の共有PBRマテリアルとPLAN用単色材を生成します。
 - `js/building-model.js`: 固定された建物寸法・開口位置からREAL/PLANモデルを構築します。
@@ -32,7 +33,13 @@ Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThr
 
 ## 読み込み順
 
-`three.min.js` → `GLTFLoader.js` → `fixed-site-data.js` → 既存material/model群 → `object-catalog.js` → `object-models.js` → `design-state.js` → `plant-editor.js` → `object-editor.js` → `asset-catalog.js` → `asset-loader.js` → `ground-feature-catalog.js` → `ground-feature-models.js` → `ground-feature-editor.js` → `app.js` の順です。`app.js`は起動直後に固定データを検証し、異常時はコンソールと画面上に警告します。
+`three.min.js` → `GLTFLoader.js` → `fixed-site-data.js` → `workspaces.js` → 既存material/model群 → `object-catalog.js` → `object-models.js` → `design-state.js` → `plant-editor.js` → `object-editor.js` → `asset-catalog.js` → `asset-loader.js` → `ground-feature-catalog.js` → `ground-feature-models.js` → `ground-feature-editor.js` → `app.js` の順です。`app.js`は起動直後に固定データとワークスペース定義を検証し、異常時はコンソールと画面上に警告します。
+
+## ワークスペース
+
+Phase 1では既存の全機能を`field`（畑レイアウト）ワークスペースとして定義します。`index.html`の各パネルセクションは`data-section`で識別し、`js/workspaces.js`の`sections`配列が表示対象を宣言します。`app.js`の`applyWorkspace()`は起動時に一度だけこの定義を適用しますが、現時点では全24セクションが含まれるため見た目と挙動は従来と同じです。
+
+パネル表示を決める`sections`、3Dシーンの対象を示す`layers`、既定カメラ、KPIを同じ設定オブジェクトに集約し、将来のワークスペース追加で条件分岐が各機能へ散らばらない構造にします。Phase 1では切り替えUIを追加せず、`ACTIVE_WORKSPACE`は常に`field`です。ワークスペース定義は固定座標と同様に、変更理由をPRへ記録して管理します。
 
 ## 状態と固定データ
 
