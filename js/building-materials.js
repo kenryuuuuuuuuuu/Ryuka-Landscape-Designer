@@ -70,6 +70,31 @@
     return painter;
   }
 
+  function sugiPainter(height) {
+    const painter = (ctx, rand, size) => {
+      ctx.fillStyle = height ? '#777' : '#ded7cc'; ctx.fillRect(0, 0, size, size);
+      const boardWidth = 21;
+      for (let x = 0; x < size; x += boardWidth) {
+        const tone = rand();
+        if (!height) {
+          const value = 208 + Math.floor(tone * 38);
+          ctx.fillStyle = `rgb(${value},${value - 4},${value - 11})`;
+          ctx.fillRect(x, 0, boardWidth - 2, size);
+        }
+        ctx.fillStyle = height ? '#3f3f3f' : 'rgba(78,66,54,.50)';
+        ctx.fillRect(x + boardWidth - 2, 0, 2, size);
+        if (!height) { ctx.fillStyle = 'rgba(255,255,255,.30)'; ctx.fillRect(x, 0, 1, size); }
+        for (let k = 0; k < 7; k++) {
+          const grainX = x + 2 + rand() * (boardWidth - 5);
+          ctx.fillStyle = height ? 'rgb(108,108,108)' : 'rgba(120,100,78,.17)';
+          ctx.fillRect(grainX, rand() * size * .3, .8, size * (.5 + rand() * .6));
+        }
+      }
+    };
+    painter.seed = height ? 577 : 571;
+    return painter;
+  }
+
   function woodPainter(ctx, rand, size) {
     ctx.fillStyle = '#66503d'; ctx.fillRect(0, 0, size, size);
     for (let x = 0; x < size; x += 16) { ctx.fillStyle = 'rgba(35,22,14,.12)'; ctx.fillRect(x, 0, 1, size); }
@@ -85,13 +110,24 @@
       concreteHeight: texture(renderer, concretePainter(true), 6, 2, false),
       roof: texture(renderer, roofPainter(false), 8, 2, true),
       roofHeight: texture(renderer, roofPainter(true), 8, 2, false),
+      sugi: texture(renderer, sugiPainter(false), 9, 2.2, true),
+      sugiHeight: texture(renderer, sugiPainter(true), 9, 2.2, false),
       wood: texture(renderer, woodPainter, 3, 1, true)
     };
+    const wallFlat = new THREE.MeshStandardMaterial({ color: 0xf1ecdf, roughness: .88, side: THREE.DoubleSide });
+    const wallTextureLuma = { r: .865, g: .845, b: .791 };
+    const syncWallFlat = hex => {
+      const color = new THREE.Color(hex);
+      wallFlat.color.setRGB(color.r * wallTextureLuma.r, color.g * wallTextureLuma.g, color.b * wallTextureLuma.b);
+    };
+    syncWallFlat(0xf1ecdf);
     const materials = {
-      wall: new THREE.MeshStandardMaterial({ color: 0xf1ecdf, map: maps.wall, bumpMap: maps.wallHeight, bumpScale: .018, roughness: .88 }),
+      wall: new THREE.MeshStandardMaterial({ color: 0xf1ecdf, map: maps.wall, bumpMap: maps.wallHeight, bumpScale: .018, roughness: .88, side: THREE.DoubleSide }),
+      wallFlat,
       foundation: new THREE.MeshStandardMaterial({ color: 0xb0aea7, map: maps.concrete, bumpMap: maps.concreteHeight, bumpScale: .035, roughness: .96 }),
       roof: new THREE.MeshStandardMaterial({ color: 0xffffff, map: maps.roof, bumpMap: maps.roofHeight, bumpScale: .025, roughness: .72, metalness: .08 }),
       wood: new THREE.MeshStandardMaterial({ color: 0xffffff, map: maps.wood, roughness: .78 }),
+      sugi: new THREE.MeshStandardMaterial({ color: 0xb98a55, map: maps.sugi, bumpMap: maps.sugiHeight, bumpScale: .03, roughness: .9 }),
       trim: new THREE.MeshStandardMaterial({ color: 0xd6d2c8, roughness: .76 }),
       metal: new THREE.MeshStandardMaterial({ color: 0x495255, roughness: .42, metalness: .48 }),
       gutter: new THREE.MeshStandardMaterial({ color: 0x394245, roughness: .56, metalness: .25 }),
@@ -105,6 +141,6 @@
       planOpening: new THREE.MeshBasicMaterial({ color: 0x50656e }),
       planDoor: new THREE.MeshBasicMaterial({ color: 0x78614d })
     };
-    return Object.freeze({ maps: Object.freeze(maps), ...materials });
+    return Object.freeze({ maps: Object.freeze(maps), wallTextureLuma: Object.freeze(wallTextureLuma), syncWallFlat, ...materials });
   };
 })(window);

@@ -182,7 +182,7 @@
     B.floor1.forEach(s => mass(group, B, m.foundation, s.x0, s.x1, s.z0, s.z0 + s.depth, L.gl, L.fl1));
     B.floor1.forEach(s => mass(group, B, m.metal, s.x0, s.x1, s.z0 - 0.01, s.z0 + s.depth + 0.01, L.fl1 - 0.04, L.fl1 + 0.035, false));
 
-    // 1階壁（平屋部は片流れのため南高・北低、2階部の下は2階軒高まで別途）
+    // 1階外壁（天領住宅Ver5）。A4南土間は2階壁より南へ張り出す。
     B.floor1.forEach((s, i) => {
       const twoStory = s.x0 >= f2.x0 - 1e-6;
       const top = twoStory ? L.fl2 : L.eaveLow;
@@ -190,13 +190,8 @@
       const floor2South = f2.z0 + f2.depth;
       let wall;
       if (twoStory && south > floor2South + 1e-6) {
-        // A4の南土間は2階外壁より南へ張り出す。2階直下と張り出し部を分離し、
-        // 張り出し壁の上端を低い下屋の下面へ沿わせて、壁が屋根を突き抜けないようにする。
         wall = mass(group, B, m.wall, s.x0, s.x1, s.z0, floor2South, L.fl1, top);
-        const canopyStartY = L.fl1 + 2.30;
-        const canopyWallEndY = canopyStartY - (south - floor2South) * B.pitch.hiraya;
-        slopedMass(group, B, m.wall, s.x0, s.x1, floor2South, south,
-          L.fl1, canopyStartY - 0.08, canopyWallEndY - 0.08);
+        mass(group, B, m.wall, s.x0, s.x1, floor2South, south, L.fl1, L.fl2);
       } else {
         wall = mass(group, B, m.wall, s.x0, s.x1, s.z0, south, L.fl1, top);
       }
@@ -206,15 +201,12 @@
         meta: [['幅', `${(s.x1 - s.x0).toFixed(3)}m`], ['奥行', `${s.depth.toFixed(3)}m`], ['面積', `${s.area}㎡`]]
       });
     });
-    // 平屋部の妻壁＋片流れ屋根（区画ごと）。
-    // 勾配の高さは「真の北端(z=0)からの絶対距離」で決まる（yAt）。各区画のシェイプ自体は
-    // 区画内ローカルu(0..depth)で作るが、配置時にs.z0だけ北へオフセットする。
-    // 単一平面で全区画を南7.280mまで一律に延ばすと、奥行きの浅い区画（segment1: 5.460m）で
-    // 1.8m超の不自然なカンチレバーになるため、各区画は「自分の壁＋控えめな軒の出0.5m」で止める。
+    // 平屋部：片流れ屋根（南上がり）＋妻壁。南軒は目隠し壁の先端まで一律に延長する。
     const hiraSegments = B.floor1.filter(s => s.x0 < f2.x0 - 1e-6);
     const yAt = zAbs => L.eaveLow + (zAbs + B.eave.north) * B.pitch.hiraya;
+    const screenMaxZ = Math.max(...(B.screenWalls || []).map(wall => wall.z1), 0);
     for (const s of hiraSegments) {
-      const zEaveAbs = s.z0 + s.depth + B.eave.south;
+      const zEaveAbs = Math.max(s.z0 + s.depth + B.eave.south, screenMaxZ);
       const yN = yAt(s.z0), yS = yAt(s.z0 + s.depth), yEave = yAt(zEaveAbs);
       const shape = new THREE.Shape();
       shape.moveTo(0, L.eaveLow); shape.lineTo(s.depth, L.eaveLow);
@@ -225,11 +217,13 @@
         mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
       }
       mass(group, B, m.wall, s.x0, s.x1, s.z0, s.z0 + 0.16, L.eaveLow, yN, true);
+      const southZ = s.z0 + s.depth;
+      mass(group, B, m.wall, s.x0, s.x1, southZ - .16, southZ, L.eaveLow, yS, true);
       const seg = slopeRoof(group, B, m.roof, s.x0 - B.eave.gable, s.x1 + B.eave.gable,
         s.z0 - B.eave.north, yN - (B.eave.north) * B.pitch.hiraya, zEaveAbs, yEave, 0.18);
       tag(seg, {
         title: `平屋部 片流れ屋根（1.5寸）｜${s.use}`,
-        body: '畑（南）に向かって上がる片流れ。南面はA1〜A3共通の直線、北面は区画ごとに0.455mずつ後退する段差。軒の出0.5mで止める。',
+        body: '畑（南）に向かって上がる片流れ。南軒は目隠し壁先端まで延長する天領住宅Ver5形状。',
         meta: [['勾配', '10:1.5'], ['北軒高', `GL+${yN.toFixed(3)}m`], ['南軒高', `GL+${yEave.toFixed(3)}m`]]
       });
     }
@@ -268,28 +262,46 @@
     mass(group, B, m.metal, f2.x0 - B.eave.gable, f2.x1 + B.eave.gable,
       f2.depth / 2 - 0.11, f2.depth / 2 + 0.11, L.ridge - 0.09, L.ridge + 0.07, false);
 
-    // 南東の下屋（南土間 = 畑からの動線）。2階窓の高さまで届いていたのは誤り。
-    // 玄関庇と同程度の低い位置（1FL+約2.3m）から南へ緩く下がる、ドア上の小庇として構成。
+    // 南東の下屋（南土間 = 畑への動線）。南立面図実測値へ合わせる。
     const doma = B.floor1[B.floor1.length - 1];
-    const domaStartY = L.fl1 + 2.30;
     slopeRoof(group, B, m.roof, doma.x0 - B.eave.gable, doma.x1 + B.eave.gable,
-      f2.depth, domaStartY, doma.depth + B.eave.south, domaStartY - (doma.depth + B.eave.south - f2.depth) * B.pitch.hiraya, 0.14);
+      f2.depth, 3.78, doma.depth + B.eave.south, 3.50, 0.16);
 
-    // 雨樋：平屋部は区画ごとの軒先に沿って設置、2階部は南北軒に設置
+    // 東面の壁上端と下屋下面の隙間を外壁で塞ぐ。
+    {
+      const zLength = doma.z0 + doma.depth - f2.depth;
+      const roofSlope = (3.50 - 3.78) / (B.eave.south + zLength);
+      const roofY = zAbs => 3.78 + roofSlope * (zAbs - f2.depth);
+      const shape = new THREE.Shape();
+      shape.moveTo(0, L.fl2); shape.lineTo(zLength, L.fl2);
+      shape.lineTo(zLength, roofY(f2.depth + zLength)); shape.lineTo(0, roofY(f2.depth)); shape.closePath();
+      const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), m.wall);
+      mesh.rotation.y = -Math.PI / 2;
+      mesh.position.set(T.x(doma.x1) + .002, 0, T.z(f2.depth));
+      mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
+    }
+
+    // 東面ルーバー戸上の庇。
+    mass(group, B, m.roof, doma.x1 - .05, doma.x1 + .65, 7 - .675, 7 + .675, L.fl1 + 2.55, L.fl1 + 2.67, false);
+
+    // 雨樋：平屋部は北側の低い軒先、2階部は南北軒に設置。
     for (const s of hiraSegments) {
-      const zEaveAbs = s.z0 + s.depth + B.eave.south, yEave = yAt(zEaveAbs);
-      cylinder(group, 0.075, s.x1 - s.x0 + 0.3, m.gutter, T.cx(s.x0, s.x1), yEave - 0.12, T.z(zEaveAbs), 8, true);
+      const northEdge = s.z0 - B.eave.north;
+      cylinder(group, 0.075, s.x1 - s.x0 + .3, m.gutter, T.cx(s.x0, s.x1), yAt(northEdge) - .12, T.z(northEdge), 8, true);
     }
     cylinder(group, 0.075, f2.x1 - f2.x0 + 0.3, m.gutter, T.cx(f2.x0, f2.x1), L.eave2 - 0.12, T.z(-B.eave.main), 8, true);
     cylinder(group, 0.075, f2.x1 - f2.x0 + 0.3, m.gutter, T.cx(f2.x0, f2.x1), L.eave2 - 0.12, T.z(f2.depth + B.eave.main), 8, true);
-    // 開口部
-    B.openings.forEach(o => addOpening(group, B, o, m, tag));
+    // 北面の平屋部に道南杉サイディングを重ねる（x=0〜11.40）。
+    B.floor1.forEach(s => {
+      if (s.x0 >= B.sugiSiding.xMax - 1e-6) return;
+      const x1 = Math.min(s.x1, B.sugiSiding.xMax);
+      mass(group, B, m.sugi, s.x0 - .012, x1 + .012, s.z0 - .055, s.z0 + .005, L.fl1, yAt(s.z0));
+    });
 
-    // 袖壁（自宅玄関・民泊玄関）。v5ではfaceZからoffsetだけ北へ離れた位置に、
-    // 外壁と平行な厚さ0.18mの壁として配置される。杉素材はPhase 2c対象のため、未定義時は外壁で代用する。
+    // 袖壁（自宅玄関・民泊玄関）。
     (B.sodekabe || []).forEach(s => {
       const centerZ = s.faceZ - s.offset;
-      const material = s.mat === 'sugi' && m.sugi ? m.sugi : m.wall;
+      const material = s.mat === 'sugi' ? m.sugi : m.wall;
       const wall = mass(group, B, material, s.lx0, s.lx1, centerZ - 0.09, centerZ + 0.09, L.gl, s.top);
       mass(group, B, m.metal, s.lx0 - 0.03, s.lx1 + 0.03, centerZ - 0.13, centerZ + 0.13, s.top, s.top + 0.05, false);
       tag(wall, {
@@ -299,9 +311,9 @@
       });
     });
 
-    // 西面浴室窓・南面窓脇の目隠し壁。上端は平屋部の片流れ屋根下面へ追従する。
+    // 目隠し壁は単色壁材で色差を補正し、上端を片流れ屋根下面へ追従させる。
     (B.screenWalls || []).forEach(s => {
-      const wall = mass(group, B, m.wall, s.x0, s.x1, s.z0, s.z1, L.gl, yAt(s.faceZ), false);
+      const wall = mass(group, B, m.wallFlat, s.x0, s.x1, s.z0, s.z1, L.gl, yAt(s.faceZ), false);
       tag(wall, {
         title: `${s.note} 目隠し壁`,
         body: '天領住宅Ver5の立面図から実測した建物角部の目隠し壁。',
@@ -309,12 +321,30 @@
       });
     });
 
+    // 開口部は壁・サイディングより手前へ配置する。
+    B.openings.forEach(o => addOpening(group, B, o, m, tag));
+
     // 玄関まわり（北面）。ポーチの北面基準は該当区画のz0（北面は区画ごとに段差があるため）。
     const porchX = B.doorX - B.origin.x;
     const porchSeg = segmentAt(B, porchX);
     const pz0 = porchSeg.z0;
     mass(group, B, m.foundation, porchX - 0.78, porchX + 0.78, pz0 - 0.95, pz0, L.gl, L.fl1 - 0.14, false);
     mass(group, B, m.roof, porchX - 0.95, porchX + 0.95, pz0 - 1.05, pz0 + 0.05, L.fl1 + 2.55, L.fl1 + 2.67, false);
+
+    // 民泊玄関アプローチ階段。
+    const guestSleeve = B.sodekabe[1], guestSegment = B.floor1[0];
+    mass(group, B, m.foundation, guestSleeve.lx0, guestSleeve.lx1, guestSegment.z0 - .95, guestSegment.z0, L.gl, L.fl1 - .14, false);
+
+    // A3〜A4の玄関アプローチ庇と2本の支柱。
+    const ax0 = B.floor1[2].x0, ax1 = B.floor1[3].x1, az0 = B.floor1[2].z0;
+    const canopyY0 = L.fl1 + 2.40, canopyY1 = L.fl1 + 2.52;
+    mass(group, B, m.roof, ax0, ax1, az0 - 1.05, az0 + .05, canopyY0, canopyY1, false);
+    [ax0 + .30, ax1 - .30].forEach(lx => {
+      const postHeight = canopyY0 - L.gl;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(.12, postHeight, .12), m.trim);
+      post.position.set(T.x(lx), L.gl + postHeight / 2, T.z(az0 - .93));
+      post.castShadow = true; post.receiveShadow = true; group.add(post);
+    });
   }
 
   global.createBuildingModel = function createBuildingModel(options) {
