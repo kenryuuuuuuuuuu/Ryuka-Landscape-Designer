@@ -76,9 +76,11 @@
       const lz = o.face === 'S' ? seg.z0 + seg.depth : seg.z0;
       x = T.x(o.lx); z = T.z(lz) + outward * 0.09;
     } else {
-      // 東西面: 東端=segment4(x=19.110)、西端=segment1(x=0)。lzは北端からの奥行き。
+      // 東西面: 東端=segment4(x=19.110)。西面は1階=segment1(x=0)、2階=floor2.x0。
       outward = o.face === 'E' ? 1 : -1;
-      const lx = o.face === 'E' ? B.floor1[B.floor1.length - 1].x1 : 0;
+      const lx = o.face === 'E'
+        ? B.floor1[B.floor1.length - 1].x1
+        : (o.level === 2 ? B.floor2.x0 : B.floor1[0].x0);
       x = T.x(lx) + outward * 0.09; z = T.z(o.lz);
     }
     const y = (o.level === 2 ? B.levels.fl2 : B.levels.fl1) + o.sill + o.h / 2;
@@ -160,7 +162,9 @@
           T.x(o.lx), y, T.z(lz) + outward * 0.06, false);
       } else {
         const outward = o.face === 'E' ? 1 : -1;
-        const lx = o.face === 'E' ? B.floor1[B.floor1.length - 1].x1 : 0;
+        const lx = o.face === 'E'
+          ? B.floor1[B.floor1.length - 1].x1
+          : (o.level === 2 ? B.floor2.x0 : B.floor1[0].x0);
         box(group, 0.04, o.h, o.w, o.kind === 'door' ? m.planDoor : m.planOpening,
           T.x(lx) + outward * 0.06, y, T.z(o.lz), false);
       }
@@ -280,6 +284,30 @@
     cylinder(group, 0.075, f2.x1 - f2.x0 + 0.3, m.gutter, T.cx(f2.x0, f2.x1), L.eave2 - 0.12, T.z(f2.depth + B.eave.main), 8, true);
     // 開口部
     B.openings.forEach(o => addOpening(group, B, o, m, tag));
+
+    // 袖壁（自宅玄関・民泊玄関）。v5ではfaceZからoffsetだけ北へ離れた位置に、
+    // 外壁と平行な厚さ0.18mの壁として配置される。杉素材はPhase 2c対象のため、未定義時は外壁で代用する。
+    (B.sodekabe || []).forEach(s => {
+      const centerZ = s.faceZ - s.offset;
+      const material = s.mat === 'sugi' && m.sugi ? m.sugi : m.wall;
+      const wall = mass(group, B, material, s.lx0, s.lx1, centerZ - 0.09, centerZ + 0.09, L.gl, s.top);
+      mass(group, B, m.metal, s.lx0 - 0.03, s.lx1 + 0.03, centerZ - 0.13, centerZ + 0.13, s.top, s.top + 0.05, false);
+      tag(wall, {
+        title: `${s.note} 袖壁`,
+        body: '天領住宅Ver5の北立面図から実測した玄関脇の目隠し壁。',
+        meta: [['幅', `${(s.lx1 - s.lx0).toFixed(2)}m`], ['天端', `GL+${s.top.toFixed(2)}m`]]
+      });
+    });
+
+    // 西面浴室窓・南面窓脇の目隠し壁。上端は平屋部の片流れ屋根下面へ追従する。
+    (B.screenWalls || []).forEach(s => {
+      const wall = mass(group, B, m.wall, s.x0, s.x1, s.z0, s.z1, L.gl, yAt(s.faceZ), false);
+      tag(wall, {
+        title: `${s.note} 目隠し壁`,
+        body: '天領住宅Ver5の立面図から実測した建物角部の目隠し壁。',
+        meta: [['奥行', `${(s.z1 - s.z0).toFixed(2)}m`], ['厚さ', `${(s.x1 - s.x0).toFixed(2)}m`]]
+      });
+    });
 
     // 玄関まわり（北面）。ポーチの北面基準は該当区画のz0（北面は区画ごとに段差があるため）。
     const porchX = B.doorX - B.origin.x;
