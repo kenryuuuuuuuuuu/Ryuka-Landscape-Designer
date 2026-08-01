@@ -8,16 +8,45 @@ const DATA = window.DATA;
 
 const STATE={mode:'real',doy:188,tod:720,northOff:0,playing:false,sunPath:true,context:true,measure:false,quality:['auto','high','low'].includes(localStorage.getItem('ryuka-render-quality'))?localStorage.getItem('ryuka-render-quality'):'auto',modelDetail:['auto','detailed','simple'].includes(localStorage.getItem('ryuka-model-detail'))?localStorage.getItem('ryuka-model-detail'):'auto',
  layers:{facilities:true,paths:true,guestBeds:true,herbs:true,rotations:true,trees:true,lawn:true,labels:false},
- guides:{labels:false,grid:false,boundary:true,crowns:false},season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true,activePlan:'A'}
+ guides:{labels:false,grid:false,boundary:true,crowns:false},season:'summer',growthYear:3,density:'standard',cropPattern:'A',showFlowers:true,showFruit:true,activePlan:'A',parkingLayout:'B',showCars:true,showCarport:true}
 
 // ---------- utilities ----------
 const $=id=>document.getElementById(id);
+async function updateVersionDisplay(){
+ const element=$('appVersion');if(!element)return;
+ let releaseDate=element.dataset.fallbackDate;
+ if(location.protocol==='http:'||location.protocol==='https:'){
+  try{
+   const response=await fetch(location.href,{method:'HEAD',cache:'no-store'});
+   const lastModified=response.headers.get('last-modified');
+   if(lastModified){
+    const parsed=new Date(lastModified);
+    if(Number.isFinite(parsed.getTime()))releaseDate=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(parsed).replaceAll('/','-');
+   }
+  }catch(error){console.debug('[Ryuka] 配信更新日の取得を省略しました',error)}
+ }
+ element.textContent=`${element.dataset.version} · ${releaseDate.replaceAll('-','.')}`;
+}
+updateVersionDisplay();
+let workspaceGroups=null;
 function applyWorkspace(wsId) {
   const ws = WORKSPACES[wsId];
   if (!ws) { console.error(`未知のワークスペース: ${wsId}`); return; }
   document.querySelectorAll('[data-section]').forEach(el => {
     el.style.display = ws.sections.includes(el.dataset.section) ? '' : 'none';
   });
+  if (workspaceGroups) {
+    Object.entries(workspaceGroups).forEach(([name,group]) => {
+      let visible = ws.layers.includes(name);
+      if (visible && Object.prototype.hasOwnProperty.call(STATE.layers,name)) visible = STATE.layers[name];
+      if (name === 'labels') visible = visible && (STATE.guides.labels || STATE.mode === 'plan');
+      if (name === 'guides') visible = visible && (STATE.guides.boundary || STATE.guides.grid || STATE.mode === 'plan');
+      if (name === 'crowns') visible = visible && (STATE.guides.crowns || STATE.mode === 'plan');
+      group.visible = visible;
+    });
+  }
+  document.querySelectorAll('#workspaceSeg button').forEach(button => button.classList.toggle('on',button.dataset.workspace === wsId));
+  document.body.dataset.workspace = wsId;
   window.ACTIVE_WORKSPACE = wsId;
 }
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
@@ -25,8 +54,8 @@ function seeded(seed){let s=seed>>>0;return()=>((s=(s*1664525+1013904223)>>>0)/4
 function polyArea(p){let s=0;for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length];s+=a.x*b.z-b.x*a.z}return Math.abs(s)/2}
 function validateFixedSiteData(){
  const errors=[],required=['site','edgeLengths','takuchiSite','fieldSite','siteBoundary','building','siteArea','takuchiArea','takuchiGeometryArea','lat','lon','paths','rotations','trees','facilities','guestGarden','herbs','lawn','labels'];
- if (typeof WORKSPACES === 'undefined' || !WORKSPACES.field) {
-  errors.push('workspaces.jsが読み込まれていないか、fieldワークスペースが未定義です');
+ if (typeof WORKSPACES === 'undefined' || !WORKSPACES.field || !WORKSPACES.exterior) {
+  errors.push('workspaces.jsが読み込まれていないか、field/exteriorワークスペースが未定義です');
  }
  required.forEach(key=>{if(DATA?.[key]===undefined||DATA[key]===null)errors.push(`必須データ「${key}」がありません`)});
  if(DATA?.site?.length!==14)errors.push(`統合敷地外周が14点ではありません（${DATA?.site?.length??0}点）`);
@@ -53,7 +82,6 @@ function validateFixedSiteData(){
 function isEffectivelyVisible(object){let current=object;while(current){if(current.visible===false)return false;current=current.parent}return true}
 window.RYUKA_VISIBILITY_UTILS=Object.freeze({isEffectivelyVisible});
 if(validateFixedSiteData()){
-applyWorkspace(WORKSPACES ? 'field' : null);
 function clipPolyAxis(poly,t,keepLess,axis='z'){const out=[],other=axis==='z'?'x':'z',inside=p=>keepLess?p[axis]<=t:p[axis]>=t;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],ia=inside(a),ib=inside(b);if(ia)out.push({...a});if(ia!==ib){const q=(t-a[axis])/(b[axis]-a[axis]);out.push({[axis]:t,[other]:a[other]+(b[other]-a[other])*q})}}return out}
 function clipPoly(poly,t,keepNorth){return clipPolyAxis(poly,t,keepNorth,'z')}
 function shapeFrom(poly){const s=new THREE.Shape();poly.forEach((p,i)=>i?s.lineTo(p.x,-p.z):s.moveTo(p.x,-p.z));return s}
@@ -84,7 +112,7 @@ function flyTo(v){
  if(v==='top'){setTopCamera();return}
  setPerspective();
  const presets={
-  birdNE:{target:[0,1,1],r:72,a:Math.PI*.76,p:.82},birdSW:{target:[0,1,1],r:68,a:-Math.PI*.28,p:.86},south:{target:[1,2,0],r:62,a:Math.PI,p:1.18},
+  birdNE:{target:[0,1,1],r:72,a:Math.PI*.76,p:.82},birdSW:{target:[0,1,1],r:68,a:-Math.PI*.28,p:.86},south:{target:[1,2,0],r:62,a:0,p:1.18},
   guestWindow:{pos:[-4,1.3,-5.45],target:[-4.8,.9,4.0]},harvest:{pos:[-8,1.65,4.6],target:[1,1.1,5]},rotation:{pos:[7,1.65,6.0],target:[2,1.1,-2]},
   pergola:{pos:[-6.5,1.15,13.4],target:[1.5,2.0,-7]},yard:{pos:[17,1.65,-.2],target:[3,1.2,3]}
  };
@@ -120,7 +148,7 @@ function collectSharedResources(value,seen=new Set()){
  if(value.isTexture){sharedTextures.add(value);return}
  Object.values(value).forEach(v=>collectSharedResources(v,seen));
 }
-collectSharedResources(GROUND);collectSharedResources(GROUND_FEATURE_RENDER_MATERIALS);collectSharedResources(BUILDING);collectSharedResources(PLANTS);collectSharedResources(PLANT_GEOMETRIES);collectSharedResources(ENVIRONMENT_MATERIALS);collectSharedResources(ENVIRONMENT_GEOMETRIES);collectSharedResources(OBJECT_MATERIALS);collectSharedResources(OBJECT_GEOMETRIES);collectSharedResources(MATS);
+collectSharedResources(GROUND);collectSharedResources(GROUND_FEATURE_RENDER_MATERIALS);collectSharedResources(BUILDING);collectSharedResources(PLANTS);collectSharedResources(PLANT_GEOMETRIES);collectSharedResources(ENVIRONMENT_MATERIALS);collectSharedResources(ENVIRONMENT_GEOMETRIES);collectSharedResources(OBJECT_MATERIALS);collectSharedResources(OBJECT_GEOMETRIES);collectSharedResources(PARKING_MATERIALS);collectSharedResources(PARKING_GEOMETRIES);collectSharedResources(ROAD_MATERIALS);collectSharedResources(MATS);
 const ASSET_MANAGER=createAssetManager(ASSET_CATALOG);
 function registerAssetSharedResources(){const resources=ASSET_MANAGER.getSharedResources();resources.geometries.forEach(value=>sharedGeometries.add(value));resources.materials.forEach(value=>sharedMaterials.add(value));resources.textures.forEach(value=>sharedTextures.add(value))}
 function resolveAssetVariant(){return STATE.modelDetail==='detailed'?'high':effectiveQuality()}
@@ -150,7 +178,8 @@ applyQuality();
 
 // ---------- core groups ----------
 const ROOT=new THREE.Group();scene.add(ROOT);
-const groups={site:new THREE.Group(),building:new THREE.Group(),facilities:new THREE.Group(),paths:new THREE.Group(),guestBeds:new THREE.Group(),herbs:new THREE.Group(),rotations:new THREE.Group(),trees:new THREE.Group(),lawn:new THREE.Group(),objects:new THREE.Group(),groundFeatures:new THREE.Group(),groundFeatureGuides:new THREE.Group(),labels:new THREE.Group(),guides:new THREE.Group(),crowns:new THREE.Group()};Object.values(groups).forEach(g=>ROOT.add(g));
+const groups={site:new THREE.Group(),building:new THREE.Group(),road:new THREE.Group(),parking:new THREE.Group(),exteriorGuides:new THREE.Group(),facilities:new THREE.Group(),paths:new THREE.Group(),guestBeds:new THREE.Group(),herbs:new THREE.Group(),rotations:new THREE.Group(),trees:new THREE.Group(),lawn:new THREE.Group(),objects:new THREE.Group(),groundFeatures:new THREE.Group(),groundFeatureGuides:new THREE.Group(),labels:new THREE.Group(),guides:new THREE.Group(),crowns:new THREE.Group()};Object.values(groups).forEach(g=>ROOT.add(g));
+workspaceGroups=groups;
 const selectable=[];
 let resolvedPlants=DATA.trees.map((tree,index)=>({...tree,designId:`base-tree-${index}`,sourceType:'base',species:tree.name,basePosition:{x:tree.x,z:tree.z},currentPosition:{x:tree.x,z:tree.z},rotation:0}));
 const plantObjects=new Map();
@@ -195,6 +224,10 @@ function buildBoundary(){boundaryObjects.forEach(o=>{groups.guides.remove(o);dis
 
 // ---------- building ----------
 function buildBuilding(){clearRebuildGroup(groups.building);groups.building.add(createBuildingModel({data:DATA.building,materials:BUILDING,mode:STATE.mode,tag}))}
+function buildRoad(){clearRebuildGroup(groups.road);groups.road.add(createRoadModel())}
+function buildParking(){clearRebuildGroup(groups.parking);groups.parking.add(createParkingModel({layout:STATE.parkingLayout,showCars:STATE.showCars,showCarport:STATE.showCarport,mode:STATE.mode}));applyWorkspace(window.ACTIVE_WORKSPACE)}
+let exteriorGuideModel=null;
+function buildExteriorGuides(){clearRebuildGroup(groups.exteriorGuides);exteriorGuideModel=createExteriorGuideModel(DATA);groups.exteriorGuides.add(exteriorGuideModel.root)}
 
 // ---------- paths / facilities ----------
 function buildPaths(){clearRebuildGroup(groups.paths)}
@@ -235,7 +268,7 @@ function updateSun(){const q=sunAltAz(STATE.doy,STATE.tod),off=STATE.northOff*Ma
 // ---------- mode styling ----------
 function setMode(mode){STATE.mode=mode;syncAssetVariant(false);updateAssetStatus(ASSET_MANAGER.getStatus());document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));$('insMeta').lastElementChild.textContent=mode==='real'?'リアル':'設計図';
  if(mode==='real'){renderer.toneMapping=THREE.ACESFilmicToneMapping;scene.fog.density=.0055;contextGroup.visible=STATE.context;groups.labels.visible=STATE.guides.labels;groups.guides.visible=STATE.guides.boundary||STATE.guides.grid;sky.visible=true}else{renderer.toneMapping=THREE.NoToneMapping;scene.fog.density=.002;contextGroup.visible=false;groups.labels.visible=true;groups.guides.visible=true;sky.visible=true}
- buildSite();buildBuilding();buildPaths();buildFacilities();buildGroundFeatures();buildGuestBeds();buildHerbs();buildRotations();buildTrees();buildLawn();buildObjects();buildLabels();updateResourceMetrics();toast(mode==='real'?'リアル表示に切替':'設計図表示に切替')}
+ buildSite();buildBuilding();buildPaths();buildFacilities();buildGroundFeatures();buildGuestBeds();buildHerbs();buildRotations();buildTrees();buildLawn();buildObjects();buildLabels();applyWorkspace(window.ACTIVE_WORKSPACE);updateResourceMetrics();toast(mode==='real'?'リアル表示に切替':'設計図表示に切替')}
 
 // ---------- build all ----------
 
@@ -362,7 +395,7 @@ $('plantUndoBtn').onclick=()=>plantEditor.undo();$('plantRedoBtn').onclick=()=>p
 PLANT_CATALOG.forEach(profile=>{const card=document.createElement('div');card.className='plant-card';card.innerHTML=`<strong>${profile.name}</strong><span>${profile.evergreen?'常緑':'落葉'}・樹高 ${profile.h}m<br>樹冠 ${profile.r}m・間隔 ${profile.spacing}m</span><button class="action" type="button">追加</button>`;card.querySelector('button').onclick=()=>addPlantSpecies(profile.name);$('plantCatalog').appendChild(card)});
 document.querySelectorAll('[data-plant-action]').forEach(button=>button.onclick=()=>{const action=button.dataset.plantAction;if(action==='left')plantEditor.move(-1,0);if(action==='right')plantEditor.move(1,0);if(action==='up')plantEditor.move(0,-1);if(action==='down')plantEditor.move(0,1);if(action==='rotate-left')plantEditor.rotate(-Math.PI/12);if(action==='rotate-right')plantEditor.rotate(Math.PI/12);if(action==='reset')plantEditor.resetSelected();if(action==='duplicate')plantEditor.duplicate();if(action==='delete')plantEditor.remove()});
 
-buildSite();buildBuilding();buildPaths();buildFacilities();buildGroundFeatures();buildGuestBeds();buildHerbs();buildRotations();buildTrees();buildLawn();buildObjects();buildLabels();buildGrid();buildSunPath();updateSun();updateGroundTotals();
+buildSite();buildBuilding();buildRoad();buildParking();buildExteriorGuides();buildPaths();buildFacilities();buildGroundFeatures();buildGuestBeds();buildHerbs();buildRotations();buildTrees();buildLawn();buildObjects();buildLabels();buildGrid();buildSunPath();updateSun();updateGroundTotals();applyWorkspace('field');
 updateResourceMetrics();
 ASSET_MANAGER.preloadAll().then(()=>updateResourceMetrics());
 window.RYUKA_ASSET_API=Object.freeze({
@@ -375,6 +408,29 @@ const layerDefs=[['facilities','施設・作業ヤード','#9aa3ab'],['paths','�
 layerDefs.forEach(d=>{const b=document.createElement('button');b.className='layer-btn on';b.dataset.layer=d[0];b.innerHTML=`<span class="layer-row"><span class="layer-dot" style="background:${d[2]}"></span><span class="layer-label">${d[1]}</span><span class="switch"></span></span>`;$('layerList').appendChild(b);b.onclick=()=>{STATE.layers[d[0]]=!STATE.layers[d[0]];groups[d[0]].visible=STATE.layers[d[0]];objectObjects.forEach(entry=>{if((entry.item.layer||'facilities')===d[0])entry.group.visible=STATE.layers[d[0]]});groundFeatureObjects.forEach(entry=>{if(entry.item.layer===d[0])entry.group.visible=STATE.layers[d[0]]});objectEditor?.handleLayerVisibility(d[0],STATE.layers[d[0]]);groundEditor?.handleLayerVisibility(d[0],STATE.layers[d[0]]);b.classList.toggle('on',STATE.layers[d[0]]);buildLabels()}});
 document.querySelectorAll('.panel-tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.panel-tabs button').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.panel-page').forEach(x=>x.classList.toggle('on',x.dataset.page===b.dataset.page))});
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{setMode(b.dataset.mode);updateSun()});document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>flyTo(b.dataset.view));
+document.querySelectorAll('#workspaceSeg button').forEach(button=>button.onclick=()=>{if(button.dataset.workspace===window.ACTIVE_WORKSPACE)return;plantEditor?.end();objectEditor?.end();groundEditor?.end();if(STATE.measure){STATE.measure=false;$('measureBtn').classList.remove('on');$('measureTip').style.display='none';clearMeasure()}if(cam.mode==='walk')stopWalk();applyWorkspace(button.dataset.workspace);flyTo(WORKSPACES[button.dataset.workspace].defaultCamera||'birdNE');toast(`${WORKSPACES[button.dataset.workspace].label}へ切替`);updateResourceMetrics()});
+function radios(name,handler){document.querySelectorAll(`input[name="${name}"]`).forEach(input=>input.onchange=event=>{if(event.target.checked)handler(event.target.value)})}
+radios('wallColor',value=>{BUILDING.wall.color.set(value);BUILDING.syncWallFlat(value)});
+radios('sugiColor',value=>BUILDING.sugi.color.set(value));
+radios('roofColor',value=>BUILDING.roof.color.set(value));
+radios('eastLayout',value=>{STATE.parkingLayout=value;buildParking();toast(`駐車レイアウト${value}へ変更`)});
+$('tgCars').onchange=event=>{STATE.showCars=event.target.checked;buildParking()};$('tgCarport').onchange=event=>{STATE.showCarport=event.target.checked;buildParking()};
+$('tgVertex').onchange=event=>{if(exteriorGuideModel)exteriorGuideModel.vertices.visible=event.target.checked};$('tgLength').onchange=event=>{if(exteriorGuideModel)exteriorGuideModel.lengths.visible=event.target.checked};$('tgBDim').onchange=event=>{if(exteriorGuideModel)exteriorGuideModel.buildingDimensions.visible=event.target.checked};
+window.RYUKA_WORKSPACE_API=Object.freeze({
+ apply:applyWorkspace,
+ current:()=>window.ACTIVE_WORKSPACE,
+ parking:()=>({layout:STATE.parkingLayout,showCars:STATE.showCars,showCarport:STATE.showCarport}),
+ appearance:()=>({wall:`#${BUILDING.wall.color.getHexString()}`,sugi:`#${BUILDING.sugi.color.getHexString()}`,roof:`#${BUILDING.roof.color.getHexString()}`}),
+ status:()=>({
+  workspace:window.ACTIVE_WORKSPACE,
+  groups:Object.fromEntries(Object.entries(groups).map(([name,group])=>[name,group.visible])),
+  exteriorGuides:exteriorGuideModel?{
+   vertices:exteriorGuideModel.vertices.visible,
+   lengths:exteriorGuideModel.lengths.visible,
+   buildingDimensions:exteriorGuideModel.buildingDimensions.visible
+  }:null
+ })
+});
 document.querySelectorAll('button[data-quality]').forEach(b=>b.onclick=()=>{STATE.quality=b.dataset.quality;localStorage.setItem('ryuka-render-quality',STATE.quality);applyQuality(true);updateSun();updateResourceMetrics()});
 document.querySelectorAll('[data-model-detail]').forEach(b=>{b.classList.toggle('on',b.dataset.modelDetail===STATE.modelDetail);b.onclick=()=>{if(STATE.modelDetail===b.dataset.modelDetail)return;STATE.modelDetail=b.dataset.modelDetail;localStorage.setItem('ryuka-model-detail',STATE.modelDetail);document.querySelectorAll('[data-model-detail]').forEach(x=>x.classList.toggle('on',x===b));syncAssetVariant();updateAssetStatus(ASSET_MANAGER.getStatus());toast(STATE.modelDetail==='auto'?'3Dモデルを自動選択':STATE.modelDetail==='detailed'?'詳細3Dモデルを使用':'簡易モデルを使用')}});
 document.querySelectorAll('[data-guide]').forEach(b=>b.onclick=()=>{const k=b.dataset.guide;if(k==='crowns'&&STATE.mode==='plan'){groups.crowns.visible=true;b.classList.add('on');return}STATE.guides[k]=!STATE.guides[k];b.classList.toggle('on',STATE.guides[k]);if(k==='labels')buildLabels();if(k==='grid')gridGroup.visible=STATE.guides.grid;if(k==='boundary')boundaryObjects.forEach(x=>x.visible=STATE.guides.boundary);if(k==='crowns')groups.crowns.visible=STATE.guides.crowns});

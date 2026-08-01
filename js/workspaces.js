@@ -15,8 +15,9 @@ window.WORKSPACES = {
 
     // 表示するThree.jsグループ名（groups.xxx と対応。既存 groups 定義に準拠）
     layers: [
-      'site', 'building', 'paths', 'rotation', 'trees',
-      'facilities', 'guestGarden', 'herbs', 'lawn', 'labels', 'guides'
+      'site', 'building', 'paths', 'rotations', 'trees', 'facilities',
+      'guestBeds', 'herbs', 'lawn', 'objects', 'groundFeatures',
+      'groundFeatureGuides', 'labels', 'guides', 'crowns'
     ],
 
     // 起動時のカメラプリセット名（既存のカメラプリセット関数名を文字列で参照）
@@ -24,10 +25,18 @@ window.WORKSPACES = {
 
     // トップバーに出すKPI（既存の #siteArea #northArea #fieldArea 等のdd要素idを流用）
     kpis: ['siteArea', 'northArea', 'fieldArea'],
+  },
+  exterior: {
+    id: 'exterior',
+    label: '宅地・外構',
+    sections: [
+      'overview', 'camera', 'displayMode', 'sun', 'atmosphere', 'north',
+      'appearance', 'parking', 'guides', 'measure', 'siteInfo', 'project', 'dataPolicy'
+    ],
+    layers: ['site', 'building', 'road', 'parking', 'guides', 'exteriorGuides'],
+    defaultCamera: 'birdNE',
+    kpis: ['siteArea', 'northArea']
   }
-
-  // Phase 2以降、ここに exterior: {...} を追加する。
-  // sections/layers/kpisの型が同じなので、追加時に他ワークスペースへの影響はない。
 };
 
-window.ACTIVE_WORKSPACE = 'field'; // Phase 1では常にfield固定
+window.ACTIVE_WORKSPACE = 'field';

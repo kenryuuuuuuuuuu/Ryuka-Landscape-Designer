@@ -21,6 +21,7 @@ button,input{font:inherit} button{touch-action:manipulation}
 .icon-btn,.seg button{border:0;color:var(--muted);background:transparent;cursor:pointer;transition:.18s ease}
 .icon-btn{width:38px;height:38px;border-radius:10px;font-size:16px}.icon-btn:hover,.icon-btn.on{background:rgba(255,255,255,.08);color:var(--ink)}
 .seg{display:flex;background:rgba(0,0,0,.22);border-radius:11px;padding:3px;gap:2px}.seg button{padding:7px 12px;border-radius:8px;font-size:11px}.seg button.on{background:var(--accent);color:white;box-shadow:0 3px 10px rgba(217,119,63,.28)}
+#workspaceSeg{pointer-events:auto;background:var(--glass);border:1px solid var(--line);box-shadow:var(--shadow);backdrop-filter:blur(18px);position:absolute;left:50%;transform:translateX(-50%)}
 
 /* left panel */
 #panel{position:fixed;left:18px;top:86px;bottom:92px;width:310px;z-index:10;background:var(--glass);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);overflow:hidden;display:flex;flex-direction:column}
@@ -32,6 +33,7 @@ button,input{font:inherit} button{touch-action:manipulation}
 .layer-row{display:flex;align-items:center;gap:9px}.layer-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.layer-label{flex:1}.switch{width:34px;height:19px;border-radius:20px;background:#354248;position:relative;transition:.2s}.switch:after{content:"";position:absolute;width:15px;height:15px;left:2px;top:2px;border-radius:50%;background:#a9b4b1;transition:.2s}.layer-btn.on .switch{background:var(--accent)}.layer-btn.on .switch:after{left:17px;background:white}
 .range-row{display:grid;grid-template-columns:62px 1fr 52px;gap:9px;align-items:center;margin:10px 0}.range-row label,.range-row output{font-size:10px;color:var(--muted)}.range-row output{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}input[type=range]{appearance:none;width:100%;height:22px;background:transparent}input[type=range]::-webkit-slider-runnable-track{height:3px;background:#425157;border-radius:4px}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);margin-top:-6.5px;border:2px solid #253137}
 .data-card{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);padding:11px}.data-card dl{display:grid;grid-template-columns:1fr auto;gap:7px 10px;font-size:10px}.data-card dt{color:var(--muted)}.data-card dd{font-variant-numeric:tabular-nums}
+.sim-row{border:1px solid var(--line);border-radius:11px;padding:9px 10px;background:rgba(255,255,255,.03);margin-bottom:7px}.sim-row strong{display:block;font-size:10px;margin-bottom:7px}.sim-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 8px}.sim-options.three{grid-template-columns:repeat(3,minmax(0,1fr))}.sim-options label{font-size:9px;color:var(--muted);display:flex;align-items:center;gap:4px;min-width:0}.sim-options input{accent-color:var(--accent)}
 
 /* inspector */
 #inspector{position:fixed;right:18px;top:86px;width:250px;z-index:9;background:var(--glass);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);backdrop-filter:blur(18px);padding:14px;transition:.22s;transform:translateX(0)}
@@ -53,6 +55,7 @@ body.panel-open #plantEditPad,body.panel-open #objectEditPad,body.panel-open #gr
 
 @media(max-width:820px){
  #topbar{left:10px;right:10px;top:10px;height:48px}.brand{min-width:0;padding:8px 11px}.brand small{font-size:7px}.brand strong{font-size:11px}.top-actions .seg{display:none}.icon-btn{width:34px;height:34px}
+ #workspaceSeg{top:52px}.seg#workspaceSeg button{font-size:9px;padding:6px 8px}
  #panel{left:8px;right:8px;top:auto;bottom:calc(8px + env(safe-area-inset-bottom));width:auto;height:46vh;max-height:440px;border-radius:18px;transform:translateY(calc(100% - 54px));transition:.28s cubic-bezier(.2,.8,.2,1);z-index:40}#panel.open{transform:translateY(0)}
  #mobileHandle{display:flex;height:48px;align-items:center;justify-content:center;border-bottom:1px solid var(--line);font-size:11px;color:var(--muted);position:relative}#mobileHandle:before{content:"";position:absolute;top:8px;width:34px;height:4px;border-radius:3px;background:#526066}
  .panel-tabs{padding-top:6px}.panel-page{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
@@ -83,7 +86,8 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 <div id="scene"></div><div id="vignette"></div>
 
 <header id="topbar">
-  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version">v4.9.0 · 2026.07.17</span></div>
+  <div class="brand"><small>RYUKA / HITA ISHII</small><strong>Landscape Simulator</strong><span class="version" id="appVersion" data-version="v4.9.0" data-fallback-date="2026-08-01">v4.9.0 · 2026.08.01</span></div>
+  <div class="seg" id="workspaceSeg" aria-label="ワークスペース"><button data-workspace="field" class="on">畑レイアウト</button><button data-workspace="exterior">宅地・外構</button></div>
   <div class="top-actions">
     <div class="seg" id="modeSeg"><button data-mode="real" class="on">REAL</button><button data-mode="plan">PLAN</button></div>
     <button class="icon-btn" id="panelBtn" title="コントロール">☰</button>
@@ -136,6 +140,15 @@ body.walking #timeline,body.walking #compareBadge{display:none}
       <button class="action on" id="contextBtn">周辺景観を表示</button>
     </div>
     <div class="section" data-section="north"><h3>NORTH</h3><div class="range-row"><label>北の補正</label><input id="northOff" type="range" min="-180" max="180" value="0"><output id="northOut">0°</output></div></div>
+    <div class="section" data-section="appearance"><h3>APPEARANCE</h3>
+      <div class="sim-row"><strong>外壁色</strong><div class="sim-options"><label><input type="radio" name="wallColor" value="#f1ecdf" checked>オフホワイト</label><label><input type="radio" name="wallColor" value="#d8d3c4">グレージュ</label><label><input type="radio" name="wallColor" value="#b8b2a4">ライトグレー</label><label><input type="radio" name="wallColor" value="#6f6a61">チャコール</label><label><input type="radio" name="wallColor" value="#8a6f52">ウッドブラウン</label></div></div>
+      <div class="sim-row"><strong>杉サイディング</strong><div class="sim-options"><label><input type="radio" name="sugiColor" value="#b98a55" checked>ナチュラル</label><label><input type="radio" name="sugiColor" value="#9c968b">アッシュ</label><label><input type="radio" name="sugiColor" value="#8a6134">ミディアム</label><label><input type="radio" name="sugiColor" value="#5e442e">濃いめ</label><label><input type="radio" name="sugiColor" value="#3b352f">焼杉</label></div></div>
+      <div class="sim-row"><strong>屋根色</strong><div class="sim-options"><label><input type="radio" name="roofColor" value="#333b3d" checked>チャコール</label><label><input type="radio" name="roofColor" value="#5c5f57">グレーグリーン</label><label><input type="radio" name="roofColor" value="#7a4a35">ブラウン</label><label><input type="radio" name="roofColor" value="#20242a">ブラック</label></div></div>
+    </div>
+    <div class="section" data-section="parking"><h3>PARKING</h3>
+      <div class="sim-row"><strong>東側駐車レイアウト</strong><div class="sim-options three"><label><input type="radio" name="eastLayout" value="A">案A</label><label><input type="radio" name="eastLayout" value="B" checked>案B</label><label><input type="radio" name="eastLayout" value="C">案C</label></div></div>
+      <div class="sim-row"><div class="sim-options"><label><input type="checkbox" id="tgCars" checked>車を表示</label><label><input type="checkbox" id="tgCarport" checked>カーポート</label></div></div>
+    </div>
   </section>
 
   <section class="panel-page" data-page="growth">
@@ -153,6 +166,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
       <button class="layer-btn" data-guide="grid"><span class="layer-row"><span class="layer-dot" style="background:#78a8b1"></span><span class="layer-label">5mグリッド</span><span class="switch"></span></span></button>
       <button class="layer-btn on" data-guide="boundary"><span class="layer-row"><span class="layer-dot" style="background:#f5efe3"></span><span class="layer-label">境界・分筆線</span><span class="switch"></span></span></button>
       <button class="layer-btn" data-guide="crowns"><span class="layer-row"><span class="layer-dot" style="background:#86a860"></span><span class="layer-label">将来樹冠ガイド</span><span class="switch"></span></span></button>
+      <div class="sim-row"><div class="sim-options"><label><input type="checkbox" id="tgVertex">頂点ラベル</label><label><input type="checkbox" id="tgLength">辺の長さ</label><label><input type="checkbox" id="tgBDim">建物寸法</label></div></div>
     </div></div>
   </section>
 
@@ -213,7 +227,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 <div id="plantEditPad" aria-label="植栽編集パッド"><button data-plant-action="left">←</button><button data-plant-action="up">↑</button><button data-plant-action="down">↓</button><button data-plant-action="right">→</button><button data-plant-action="rotate-left">↶</button><button data-plant-action="rotate-right">↷</button><button data-plant-action="reset">戻</button><button data-plant-action="duplicate">複</button><button data-plant-action="delete">削</button></div>
 <div id="objectEditPad" aria-label="外構編集パッド"><button data-object-action="left">←</button><button data-object-action="up">↑</button><button data-object-action="down">↓</button><button data-object-action="right">→</button><button data-object-action="rotate-left">↶</button><button data-object-action="rotate-right">↷</button><button data-object-action="reset">戻</button><button data-object-action="duplicate">複</button><button data-object-action="delete">削</button></div>
 <div id="groundEditPad" aria-label="地表編集パッド"><button data-ground-action="left">←</button><button data-ground-action="up">↑</button><button data-ground-action="down">↓</button><button data-ground-action="right">→</button><button data-ground-action="prev">前点</button><button data-ground-action="next">次点</button><button data-ground-action="add-vertex">点＋</button><button data-ground-action="remove-vertex">点−</button><button data-ground-action="move-mode">全体</button><button data-ground-action="width-down">幅−</button><button data-ground-action="width-up">幅＋</button><button data-ground-action="reset">戻</button><button data-ground-action="duplicate">複</button><button data-ground-action="delete">削</button></div>
-<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./vendor/GLTFLoader.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/workspaces.js"></script><script src="./js/ground-materials.js"></script><script src="./js/building-materials.js"></script><script src="./js/building-model.js"></script><script src="./js/plant-materials.js"></script><script src="./js/plant-models.js"></script><script src="./js/environment-materials.js"></script><script src="./js/environment-model.js"></script><script src="./js/object-catalog.js"></script><script src="./js/object-models.js"></script><script src="./js/design-state.js"></script><script src="./js/plant-editor.js"></script><script src="./js/object-editor.js"></script><script src="./js/asset-catalog.js"></script><script src="./js/asset-loader.js"></script><script src="./js/ground-feature-catalog.js"></script><script src="./js/ground-feature-models.js"></script><script src="./js/ground-feature-editor.js"></script><script src="./js/app.js"></script>
+<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./vendor/GLTFLoader.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/workspaces.js"></script><script src="./js/ground-materials.js"></script><script src="./js/building-materials.js"></script><script src="./js/building-model.js"></script><script src="./js/parking-model.js"></script><script src="./js/site-model.js"></script><script src="./js/plant-materials.js"></script><script src="./js/plant-models.js"></script><script src="./js/environment-materials.js"></script><script src="./js/environment-model.js"></script><script src="./js/object-catalog.js"></script><script src="./js/object-models.js"></script><script src="./js/design-state.js"></script><script src="./js/plant-editor.js"></script><script src="./js/object-editor.js"></script><script src="./js/asset-catalog.js"></script><script src="./js/asset-loader.js"></script><script src="./js/ground-feature-catalog.js"></script><script src="./js/ground-feature-models.js"></script><script src="./js/ground-feature-editor.js"></script><script src="./js/app.js"></script>
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(console.warn));

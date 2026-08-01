@@ -10,6 +10,8 @@ Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThr
 - `js/ground-materials.js`: REAL用の地表テクスチャと共有マテリアル、およびPLAN用の単色マテリアルを生成します。
 - `js/building-materials.js`: 建物外観の共有PBRマテリアルとPLAN用単色材を生成します。
 - `js/building-model.js`: 固定された建物寸法・開口位置からREAL/PLANモデルを構築します。
+- `js/parking-model.js`: v5確定座標の西側駐車、東側A/B/C案、低負荷な車・カーポートを構築します。
+- `js/site-model.js`: 宅地・外構ワークスペース専用の道路・転回エリア、頂点・辺長・建物寸法ガイドを構築します。
 - `js/plant-materials.js`: 樹種・季節別の共有植物マテリアルを定義します。
 - `js/plant-models.js`: 固定樹木データから樹種別の幹・枝・葉・花・果実を構築します。
 - `js/environment-materials.js`: 山並み、周辺樹林、路肩、接地影などの共有環境マテリアルを定義します。
@@ -33,13 +35,15 @@ Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThr
 
 ## 読み込み順
 
-`three.min.js` → `GLTFLoader.js` → `fixed-site-data.js` → `workspaces.js` → 既存material/model群 → `object-catalog.js` → `object-models.js` → `design-state.js` → `plant-editor.js` → `object-editor.js` → `asset-catalog.js` → `asset-loader.js` → `ground-feature-catalog.js` → `ground-feature-models.js` → `ground-feature-editor.js` → `app.js` の順です。`app.js`は起動直後に固定データとワークスペース定義を検証し、異常時はコンソールと画面上に警告します。
+`three.min.js` → `GLTFLoader.js` → `fixed-site-data.js` → `workspaces.js` → `ground/building material・model群` → `parking-model.js` → `site-model.js` → 植物・環境model群 → `object-catalog.js` → `object-models.js` → `design-state.js` → 各editor → asset/ground-feature群 → `app.js` の順です。`app.js`は起動直後に固定データと2つのワークスペース定義を検証し、異常時はコンソールと画面上に警告します。
 
 ## ワークスペース
 
-Phase 1では既存の全機能を`field`（畑レイアウト）ワークスペースとして定義します。`index.html`の各パネルセクションは`data-section`で識別し、`js/workspaces.js`の`sections`配列が表示対象を宣言します。`app.js`の`applyWorkspace()`は起動時に一度だけこの定義を適用しますが、現時点では全24セクションが含まれるため見た目と挙動は従来と同じです。
+`field`（畑レイアウト）と`exterior`（宅地・外構）をトップバーから切り替えます。`index.html`の各パネルセクションは`data-section`で識別し、`js/workspaces.js`の`sections`配列が表示対象を宣言します。`layers`配列はThree.jsのroot直下グループにも適用され、fieldでは従来の畑・植栽・外構編集を、exteriorでは宅地・建物・道路・駐車場・寸法ガイドを表示します。
 
-パネル表示を決める`sections`、3Dシーンの対象を示す`layers`、既定カメラ、KPIを同じ設定オブジェクトに集約し、将来のワークスペース追加で条件分岐が各機能へ散らばらない構造にします。Phase 1では切り替えUIを追加せず、`ACTIVE_WORKSPACE`は常に`field`です。ワークスペース定義は固定座標と同様に、変更理由をPRへ記録して管理します。
+パネル表示を決める`sections`、3Dシーンの対象を示す`layers`、既定カメラ、KPIを同じ設定オブジェクトに集約しています。ワークスペース切替では編集・計測・歩行の競合を解消してから、セクションとrootグループの可視性を同時に更新します。ワークスペース定義は固定座標と同様に、変更理由をPRへ記録して管理します。
+
+宅地・外構では、外壁・道南杉・屋根の共有マテリアル色だけを変更するため再構築や固定データ変更は発生しません。駐車案切替は`parking`グループだけを再構築し、共有Geometry/Materialを保護したまま動的なカーポート屋根Geometryだけを解放します。
 
 ## 状態と固定データ
 
