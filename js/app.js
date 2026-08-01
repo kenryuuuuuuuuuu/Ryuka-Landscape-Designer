@@ -12,11 +12,22 @@ const STATE={mode:'real',doy:188,tod:720,northOff:0,playing:false,sunPath:true,c
 
 // ---------- utilities ----------
 const $=id=>document.getElementById(id);
+function applyWorkspace(wsId) {
+  const ws = WORKSPACES[wsId];
+  if (!ws) { console.error(`未知のワークスペース: ${wsId}`); return; }
+  document.querySelectorAll('[data-section]').forEach(el => {
+    el.style.display = ws.sections.includes(el.dataset.section) ? '' : 'none';
+  });
+  window.ACTIVE_WORKSPACE = wsId;
+}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function seeded(seed){let s=seed>>>0;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296)}
 function polyArea(p){let s=0;for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length];s+=a.x*b.z-b.x*a.z}return Math.abs(s)/2}
 function validateFixedSiteData(){
  const errors=[],required=['site','edgeLengths','building','siteArea','takuchiArea','lat','lon','paths','rotations','trees','facilities','guestGarden','herbs','lawn','labels'];
+ if (typeof WORKSPACES === 'undefined' || !WORKSPACES.field) {
+  errors.push('workspaces.jsが読み込まれていないか、fieldワークスペースが未定義です');
+ }
  required.forEach(key=>{if(DATA?.[key]===undefined||DATA[key]===null)errors.push(`必須データ「${key}」がありません`)});
  if(DATA?.site?.length!==5)errors.push(`敷地点数が5点ではありません（${DATA?.site?.length??0}点）`);
  ['cx','cz','w','d'].forEach(key=>{if(!Number.isFinite(DATA?.building?.[key]))errors.push(`必須データ「building.${key}」がありません`)});
@@ -38,6 +49,7 @@ function validateFixedSiteData(){
 function isEffectivelyVisible(object){let current=object;while(current){if(current.visible===false)return false;current=current.parent}return true}
 window.RYUKA_VISIBILITY_UTILS=Object.freeze({isEffectivelyVisible});
 if(validateFixedSiteData()){
+applyWorkspace(WORKSPACES ? 'field' : null);
 function clipPoly(poly,t,keepNorth){const out=[],inside=p=>keepNorth?p.z<=t:p.z>=t;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],ia=inside(a),ib=inside(b);if(ia)out.push({...a});if(ia!==ib){const q=(t-a.z)/(b.z-a.z);out.push({x:a.x+(b.x-a.x)*q,z:t})}}return out}
 function shapeFrom(poly){const s=new THREE.Shape();poly.forEach((p,i)=>i?s.lineTo(p.x,-p.z):s.moveTo(p.x,-p.z));return s}
 function disposeObj(o){if(!o)return;o.traverse?.(c=>{c.geometry?.dispose?.();if(c.material){const ms=Array.isArray(c.material)?c.material:[c.material];ms.forEach(m=>{Object.values(m).forEach(v=>v&&v.isTexture&&v.dispose?.());m.dispose?.()})}})}

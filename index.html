@@ -99,21 +99,21 @@ body.walking #timeline,body.walking #compareBadge{display:none}
   </nav>
 
   <section class="panel-page on" data-page="views">
-    <div class="section"><h3>OVERVIEW</h3><div class="grid2">
+    <div class="section" data-section="overview"><h3>OVERVIEW</h3><div class="grid2">
       <button class="view-btn on" data-view="birdNE">北東鳥瞰<span>全体の標準視点</span></button>
       <button class="view-btn" data-view="birdSW">南西鳥瞰<span>奥から建物方向</span></button>
       <button class="view-btn" data-view="top">真上<span>正投影・配置確認</span></button>
       <button class="view-btn" data-view="south">南から<span>畑越しに建物</span></button>
     </div></div>
-    <div class="section"><h3>EXPERIENCE VIEW</h3><div class="stack">
+    <div class="section" data-section="experienceView"><h3>EXPERIENCE VIEW</h3><div class="stack">
       <button class="view-btn" data-view="guestWindow">民泊リビング・着座<span>腰窓から収穫ガーデンを見る</span></button>
       <button class="view-btn" data-view="harvest">収穫ガーデン<span>ゲスト体験エリアの目線</span></button>
       <button class="view-btn" data-view="rotation">輪作区画中央<span>作業性と周囲の見え方</span></button>
       <button class="view-btn" data-view="pergola">パーゴラ・着座<span>奥の間から建物を振り返る</span></button>
       <button class="view-btn" data-view="yard">作業ヤード<span>収納・井戸・畑への動線</span></button>
     </div></div>
-    <div class="section"><h3>WALK THROUGH</h3><div class="grid2"><button class="action" id="walkBtn">一人称で歩く</button><button class="action" id="walkExitBtn">歩行を終了</button></div><p class="section-note">PCはWASD、スマホは左下で移動・画面ドラッグで視点変更。畑内を目線高1.65mで確認します。</p></div>
-    <div class="section"><h3>CAMERA</h3>
+    <div class="section" data-section="walkthrough"><h3>WALK THROUGH</h3><div class="grid2"><button class="action" id="walkBtn">一人称で歩く</button><button class="action" id="walkExitBtn">歩行を終了</button></div><p class="section-note">PCはWASD、スマホは左下で移動・画面ドラッグで視点変更。畑内を目線高1.65mで確認します。</p></div>
+    <div class="section" data-section="camera"><h3>CAMERA</h3>
       <div class="range-row"><label>画角</label><input id="fov" type="range" min="30" max="75" value="48"><output id="fovOut">48°</output></div>
       <button class="action" id="resetView">標準視点に戻す</button>
       <p class="section-note">ドラッグで回転、右ドラッグまたはShift＋ドラッグで移動、ホイール／ピンチで拡大縮小。</p>
@@ -121,13 +121,13 @@ body.walking #timeline,body.walking #compareBadge{display:none}
   </section>
 
   <section class="panel-page" data-page="scene">
-    <div class="section"><h3>DISPLAY MODE</h3><div class="grid2"><button class="action on" data-mode="real">リアル表示</button><button class="action" data-mode="plan">設計図表示</button></div></div>
-    <div class="section"><h3>SUN & TIME</h3>
+    <div class="section" data-section="displayMode"><h3>DISPLAY MODE</h3><div class="grid2"><button class="action on" data-mode="real">リアル表示</button><button class="action" data-mode="plan">設計図表示</button></div></div>
+    <div class="section" data-section="sun"><h3>SUN & TIME</h3>
       <div class="range-row"><label>日付</label><input id="doy" type="range" min="1" max="365" value="188"><output id="doyOut">7/7</output></div>
       <div class="range-row"><label>時刻</label><input id="tod" type="range" min="300" max="1170" step="5" value="720"><output id="todOut">12:00</output></div>
       <div class="grid2"><button class="action" id="playBtn">▶ 1日を再生</button><button class="action on" id="sunPathBtn">太陽軌道</button></div>
     </div>
-    <div class="section"><h3>ATMOSPHERE</h3>
+    <div class="section" data-section="atmosphere"><h3>ATMOSPHERE</h3>
       <div class="section-note" style="margin:0 0 6px">描画品質</div><div class="choice-grid three" id="qualityChoices"><button class="choice on" data-quality="auto">AUTO</button><button class="choice" data-quality="high">HIGH</button><button class="choice" data-quality="low">LOW</button></div>
       <div class="section-note" style="margin:9px 0 6px">3Dモデル</div><div class="choice-grid three" id="modelDetailChoices"><button class="choice on" data-model-detail="auto">AUTO</button><button class="choice" data-model-detail="detailed">詳細</button><button class="choice" data-model-detail="simple">簡易</button></div>
       <div class="section-note" id="assetStatus" role="status" aria-live="polite" style="margin-top:7px">3Dアセット 読み込み前</div>
@@ -135,20 +135,20 @@ body.walking #timeline,body.walking #compareBadge{display:none}
       <div class="range-row"><label>影</label><input id="shadowSoft" type="range" min="0" max="100" value="72"><output id="shadowOut">72%</output></div>
       <button class="action on" id="contextBtn">周辺景観を表示</button>
     </div>
-    <div class="section"><h3>NORTH</h3><div class="range-row"><label>北の補正</label><input id="northOff" type="range" min="-180" max="180" value="0"><output id="northOut">0°</output></div></div>
+    <div class="section" data-section="north"><h3>NORTH</h3><div class="range-row"><label>北の補正</label><input id="northOff" type="range" min="-180" max="180" value="0"><output id="northOut">0°</output></div></div>
   </section>
 
   <section class="panel-page" data-page="growth">
-    <div class="section"><h3>SEASON</h3><div class="choice-grid" id="seasonChoices"><button class="choice" data-season="spring">春</button><button class="choice on" data-season="summer">夏</button><button class="choice" data-season="autumn">秋</button><button class="choice" data-season="winter">冬</button></div></div>
-    <div class="section"><h3>GROWTH YEAR</h3><div class="range-row"><label>経過年数</label><input id="growthYear" type="range" min="0" max="10" step="1" value="3"><output id="growthYearOut">3年後</output></div><p class="section-note">座標は固定し、樹高・樹冠・葉量だけを変化させます。</p></div>
-    <div class="section"><h3>PLANTING DENSITY</h3><div class="choice-grid three" id="densityChoices"><button class="choice" data-density="low">省管理</button><button class="choice on" data-density="standard">標準</button><button class="choice" data-density="lush">豊かな景観</button></div></div>
-    <div class="section"><h3>CROP PATTERN</h3><div class="choice-grid" id="cropChoices"><button class="choice on" data-crop="A">輪作案A</button><button class="choice" data-crop="B">輪作案B</button></div><div class="data-card" style="margin-top:8px"><dl><dt>輪作A</dt><dd id="cropARead">果菜</dd><dt>輪作B</dt><dd id="cropBRead">葉・根菜</dd><dt>輪作C</dt><dd id="cropCRead">つる物</dd><dt>輪作D</dt><dd id="cropDRead">緑肥</dd></dl></div></div>
-    <div class="section"><h3>PHENOLOGY</h3><div class="grid2"><button class="action on" id="flowerBtn">花を表示</button><button class="action on" id="fruitBtn">実を表示</button></div></div>
+    <div class="section" data-section="season"><h3>SEASON</h3><div class="choice-grid" id="seasonChoices"><button class="choice" data-season="spring">春</button><button class="choice on" data-season="summer">夏</button><button class="choice" data-season="autumn">秋</button><button class="choice" data-season="winter">冬</button></div></div>
+    <div class="section" data-section="growthYear"><h3>GROWTH YEAR</h3><div class="range-row"><label>経過年数</label><input id="growthYear" type="range" min="0" max="10" step="1" value="3"><output id="growthYearOut">3年後</output></div><p class="section-note">座標は固定し、樹高・樹冠・葉量だけを変化させます。</p></div>
+    <div class="section" data-section="plantingDensity"><h3>PLANTING DENSITY</h3><div class="choice-grid three" id="densityChoices"><button class="choice" data-density="low">省管理</button><button class="choice on" data-density="standard">標準</button><button class="choice" data-density="lush">豊かな景観</button></div></div>
+    <div class="section" data-section="cropPattern"><h3>CROP PATTERN</h3><div class="choice-grid" id="cropChoices"><button class="choice on" data-crop="A">輪作案A</button><button class="choice" data-crop="B">輪作案B</button></div><div class="data-card" style="margin-top:8px"><dl><dt>輪作A</dt><dd id="cropARead">果菜</dd><dt>輪作B</dt><dd id="cropBRead">葉・根菜</dd><dt>輪作C</dt><dd id="cropCRead">つる物</dd><dt>輪作D</dt><dd id="cropDRead">緑肥</dd></dl></div></div>
+    <div class="section" data-section="phenology"><h3>PHENOLOGY</h3><div class="grid2"><button class="action on" id="flowerBtn">花を表示</button><button class="action on" id="fruitBtn">実を表示</button></div></div>
   </section>
 
   <section class="panel-page" data-page="layers">
-    <div class="section"><h3>LANDSCAPE LAYERS</h3><div class="stack" id="layerList"></div></div>
-    <div class="section"><h3>GUIDES</h3><div class="stack">
+    <div class="section" data-section="landscapeLayers"><h3>LANDSCAPE LAYERS</h3><div class="stack" id="layerList"></div></div>
+    <div class="section" data-section="guides"><h3>GUIDES</h3><div class="stack">
       <button class="layer-btn" data-guide="labels"><span class="layer-row"><span class="layer-dot" style="background:#f0e5cd"></span><span class="layer-label">ゾーン名・樹種</span><span class="switch"></span></span></button>
       <button class="layer-btn" data-guide="grid"><span class="layer-row"><span class="layer-dot" style="background:#78a8b1"></span><span class="layer-label">5mグリッド</span><span class="switch"></span></span></button>
       <button class="layer-btn on" data-guide="boundary"><span class="layer-row"><span class="layer-dot" style="background:#f5efe3"></span><span class="layer-label">境界・分筆線</span><span class="switch"></span></span></button>
@@ -157,7 +157,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
   </section>
 
   <section class="panel-page" data-page="tools">
-    <div class="section"><h3>GROUND LAYOUT EDITOR</h3>
+    <div class="section" data-section="groundEdit"><h3>GROUND LAYOUT EDITOR</h3>
       <button class="action" id="groundEditToggle">編集モードを開始</button>
       <div class="grid2" style="margin-top:7px"><button class="action" id="groundUndoBtn">元に戻す</button><button class="action" id="groundRedoBtn">やり直す</button></div>
       <label class="section-note" for="groundSnap">スナップ幅</label><select class="plant-select" id="groundSnap"><option value="0">なし</option><option value="0.25" selected>0.25m</option><option value="0.5">0.5m</option><option value="1">1.0m</option></select>
@@ -169,7 +169,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
       <div class="data-card" id="groundTotals" style="margin-top:8px"></div>
       <p class="section-note">面積・延長はプラン比較用の概算です。PCはドラッグ・矢印キー、スマホは編集パッドで操作できます。</p>
     </div>
-    <div class="section"><h3>OUTDOOR OBJECT EDITOR</h3>
+    <div class="section" data-section="objectEdit"><h3>OUTDOOR OBJECT EDITOR</h3>
       <button class="action" id="objectEditToggle">外構編集を開始</button>
       <div class="grid2" style="margin-top:7px"><button class="action" id="objectUndoBtn">元に戻す</button><button class="action" id="objectRedoBtn">やり直す</button></div>
       <label class="section-note" for="objectSnap">スナップ幅</label><select class="plant-select" id="objectSnap"><option value="0">なし</option><option value="0.25" selected>0.25m</option><option value="0.5">0.5m</option><option value="1">1.0m</option></select>
@@ -178,7 +178,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
       <details style="margin-top:10px"><summary class="action">設備・家具を追加</summary><div class="plant-catalog" id="objectCatalog"></div></details>
       <p class="section-note">PCはドラッグ・矢印キー、スマホは編集パッドで移動できます。既存設備は固定データを変更せず、プラン差分だけを保存します。</p>
     </div>
-    <div class="section"><h3>PLANT LAYOUT EDITOR</h3>
+    <div class="section" data-section="plantEdit"><h3>PLANT LAYOUT EDITOR</h3>
       <button class="action" id="plantEditToggle">編集モードを開始</button>
       <div class="grid2" style="margin-top:7px"><button class="action" id="plantUndoBtn">元に戻す</button><button class="action" id="plantRedoBtn">やり直す</button></div>
       <label class="section-note" for="plantSnap">スナップ幅</label><select class="plant-select" id="plantSnap"><option value="0">なし</option><option value="0.25" selected>0.25m</option><option value="0.5">0.5m</option><option value="1">1.0m</option></select>
@@ -187,14 +187,14 @@ body.walking #timeline,body.walking #compareBadge{display:none}
       <details style="margin-top:10px"><summary class="action">植栽を追加</summary><div class="plant-catalog" id="plantCatalog"></div></details>
       <p class="section-note">PCはドラッグ・矢印キー、スマホは編集パッドで移動できます。既存植栽は固定データを変更せず差分だけを保存します。</p>
     </div>
-    <div class="section"><h3>MEASURE</h3><div class="grid2"><button class="action" id="measureBtn">距離を計測</button><button class="action" id="clearMeasureBtn">計測を消去</button></div></div>
-    <div class="section"><h3>SITE DATA</h3><div class="data-card"><dl>
+    <div class="section" data-section="measure"><h3>MEASURE</h3><div class="grid2"><button class="action" id="measureBtn">距離を計測</button><button class="action" id="clearMeasureBtn">計測を消去</button></div></div>
+    <div class="section" data-section="siteInfo"><h3>SITE DATA</h3><div class="data-card"><dl>
       <dt>敷地面積</dt><dd id="siteArea">988.87㎡</dd><dt>北側宅地</dt><dd id="northArea">319.0㎡</dd><dt>南側畑</dt><dd id="fieldArea">669.9㎡</dd><dt>建物寸法</dt><dd>19.11 × 7.735m</dd><dt>座標系</dt><dd>x=東 / z=南</dd>
     </dl></div></div>
-    <div class="section"><h3>BOUNDARY ADJUSTMENT</h3><div class="range-row"><label>分筆線</label><input id="splitPos" type="range" min="0" max="1000" value="500"><output id="splitOut">±0.0m</output></div><p class="section-note">元HTMLと同様の検討用調整です。初期値が宅地319㎡となる推定位置です。</p></div>
-    <div class="section"><h3>PLAN A / B</h3><div class="grid2"><button class="action on" id="planABtn">プランA</button><button class="action" id="planBBtn">プランB</button></div><div class="grid2" style="margin-top:7px"><button class="action" id="savePlanBtn">現在案を保存</button><button class="action" id="resetPlanBtn">案を初期化</button></div><p class="section-note">季節・年数・密度・輪作パターンを案ごとに保存し、同一視点で切り替えて比較します。</p></div>
-    <div class="section"><h3>PROJECT</h3><div class="grid2"><button class="action" id="exportBtn">設定を書き出す</button><button class="action" id="importBtn">設定を読み込む</button></div><input type="file" id="importFile" accept="application/json" hidden></div>
-    <div class="section"><h3>DATA POLICY</h3><p class="section-note">敷地A〜E、辺長、建物中心・寸法、初期植栽・施設座標はv2.2の値を固定データとして保持しています。表示モードや素材変更では座標を変更しません。</p></div>
+    <div class="section" data-section="boundaryAdjustment"><h3>BOUNDARY ADJUSTMENT</h3><div class="range-row"><label>分筆線</label><input id="splitPos" type="range" min="0" max="1000" value="500"><output id="splitOut">±0.0m</output></div><p class="section-note">元HTMLと同様の検討用調整です。初期値が宅地319㎡となる推定位置です。</p></div>
+    <div class="section" data-section="planAB"><h3>PLAN A / B</h3><div class="grid2"><button class="action on" id="planABtn">プランA</button><button class="action" id="planBBtn">プランB</button></div><div class="grid2" style="margin-top:7px"><button class="action" id="savePlanBtn">現在案を保存</button><button class="action" id="resetPlanBtn">案を初期化</button></div><p class="section-note">季節・年数・密度・輪作パターンを案ごとに保存し、同一視点で切り替えて比較します。</p></div>
+    <div class="section" data-section="project"><h3>PROJECT</h3><div class="grid2"><button class="action" id="exportBtn">設定を書き出す</button><button class="action" id="importBtn">設定を読み込む</button></div><input type="file" id="importFile" accept="application/json" hidden></div>
+    <div class="section" data-section="dataPolicy"><h3>DATA POLICY</h3><p class="section-note">敷地A〜E、辺長、建物中心・寸法、初期植栽・施設座標はv2.2の値を固定データとして保持しています。表示モードや素材変更では座標を変更しません。</p></div>
   </section>
 </aside>
 
@@ -213,7 +213,7 @@ body.walking #timeline,body.walking #compareBadge{display:none}
 <div id="plantEditPad" aria-label="植栽編集パッド"><button data-plant-action="left">←</button><button data-plant-action="up">↑</button><button data-plant-action="down">↓</button><button data-plant-action="right">→</button><button data-plant-action="rotate-left">↶</button><button data-plant-action="rotate-right">↷</button><button data-plant-action="reset">戻</button><button data-plant-action="duplicate">複</button><button data-plant-action="delete">削</button></div>
 <div id="objectEditPad" aria-label="外構編集パッド"><button data-object-action="left">←</button><button data-object-action="up">↑</button><button data-object-action="down">↓</button><button data-object-action="right">→</button><button data-object-action="rotate-left">↶</button><button data-object-action="rotate-right">↷</button><button data-object-action="reset">戻</button><button data-object-action="duplicate">複</button><button data-object-action="delete">削</button></div>
 <div id="groundEditPad" aria-label="地表編集パッド"><button data-ground-action="left">←</button><button data-ground-action="up">↑</button><button data-ground-action="down">↓</button><button data-ground-action="right">→</button><button data-ground-action="prev">前点</button><button data-ground-action="next">次点</button><button data-ground-action="add-vertex">点＋</button><button data-ground-action="remove-vertex">点−</button><button data-ground-action="move-mode">全体</button><button data-ground-action="width-down">幅−</button><button data-ground-action="width-up">幅＋</button><button data-ground-action="reset">戻</button><button data-ground-action="duplicate">複</button><button data-ground-action="delete">削</button></div>
-<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./vendor/GLTFLoader.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/ground-materials.js"></script><script src="./js/building-materials.js"></script><script src="./js/building-model.js"></script><script src="./js/plant-materials.js"></script><script src="./js/plant-models.js"></script><script src="./js/environment-materials.js"></script><script src="./js/environment-model.js"></script><script src="./js/object-catalog.js"></script><script src="./js/object-models.js"></script><script src="./js/design-state.js"></script><script src="./js/plant-editor.js"></script><script src="./js/object-editor.js"></script><script src="./js/asset-catalog.js"></script><script src="./js/asset-loader.js"></script><script src="./js/ground-feature-catalog.js"></script><script src="./js/ground-feature-models.js"></script><script src="./js/ground-feature-editor.js"></script><script src="./js/app.js"></script>
+<div id="mobileWalkControls"><div id="joystick" aria-label="移動ジョイスティック"><div id="joystickKnob"></div></div><button id="mobileWalkExit" type="button">歩行を終了</button></div><script src="./vendor/three.min.js"></script><script src="./vendor/GLTFLoader.js"></script><script src="./data/fixed-site-data.js"></script><script src="./js/workspaces.js"></script><script src="./js/ground-materials.js"></script><script src="./js/building-materials.js"></script><script src="./js/building-model.js"></script><script src="./js/plant-materials.js"></script><script src="./js/plant-models.js"></script><script src="./js/environment-materials.js"></script><script src="./js/environment-model.js"></script><script src="./js/object-catalog.js"></script><script src="./js/object-models.js"></script><script src="./js/design-state.js"></script><script src="./js/plant-editor.js"></script><script src="./js/object-editor.js"></script><script src="./js/asset-catalog.js"></script><script src="./js/asset-loader.js"></script><script src="./js/ground-feature-catalog.js"></script><script src="./js/ground-feature-models.js"></script><script src="./js/ground-feature-editor.js"></script><script src="./js/app.js"></script>
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(console.warn));
