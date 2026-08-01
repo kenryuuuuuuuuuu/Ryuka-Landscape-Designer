@@ -255,13 +255,16 @@
     const plan = {
       'path-gravel': ground.planPath, 'path-soil': ground.planSoil, 'path-stone': new THREE.MeshBasicMaterial({ color: 0xb6b0a1 }),
       'area-lawn': new THREE.MeshBasicMaterial({ color: 0x6f9f54 }), 'area-clover': ground.planClover,
+      'area-crimson-clover': new THREE.MeshBasicMaterial({ color: 0xc07078 }),
+      'area-green-manure': new THREE.MeshBasicMaterial({ color: 0x7d8f5a }),
       'area-gravel': ground.planGravel, 'area-flower-bed': new THREE.MeshBasicMaterial({ color: 0xa77568 }),
       'area-vegetable': ground.planSoil, 'area-herb': new THREE.MeshBasicMaterial({ color: 0x8176a6 }),
       'area-weed-control': new THREE.MeshBasicMaterial({ color: 0x555b59 }), 'area-yard-gravel': ground.planGravel
     };
     const real = {
       'path-gravel': ground.path, 'path-soil': ground.rotationSoil, 'path-stone': ground.pergolaGravel,
-      'area-lawn': ground.clover, 'area-clover': ground.clover, 'area-gravel': ground.yardGravel,
+      'area-lawn': ground.clover, 'area-clover': ground.clover,
+      'area-crimson-clover': ground.clover, 'area-green-manure': ground.clover, 'area-gravel': ground.yardGravel,
       'area-flower-bed': ground.guestSoil, 'area-vegetable': ground.rotationSoil, 'area-herb': ground.guestSoil,
       'area-weed-control': weed, 'area-yard-gravel': ground.yardGravel
     };

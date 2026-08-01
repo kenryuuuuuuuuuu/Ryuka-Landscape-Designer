@@ -24,7 +24,7 @@ load('js/ground-feature-models.js');
 load('js/ground-feature-editor.js');
 load('js/design-state.js');
 
-assert.strictEqual(GROUND_FEATURE_CATALOG.length, 11, '11 addable ground feature types');
+assert.strictEqual(GROUND_FEATURE_CATALOG.length, 13, '13 addable ground feature types');
 assert(Object.isFrozen(GROUND_FEATURE_CATALOG), 'ground catalog is frozen');
 GROUND_FEATURE_CATALOG.forEach(item => {
   ['featureType', 'label', 'kind', 'category', 'addable', 'defaultLayer', 'materialId', 'defaultWidth', 'minimumWidth', 'maximumWidth', 'minimumArea', 'description'].forEach(field => {
@@ -33,13 +33,44 @@ GROUND_FEATURE_CATALOG.forEach(item => {
 });
 
 const base = createBaseGroundFeatures(DATA);
-assert.strictEqual(base.length, 12, '12 fixed ground features');
-assert.strictEqual(new Set(base.map(item => item.designId)).size, 12, 'fixed ground IDs are unique');
+assert.strictEqual(base.length, 23, '23 fixed ground features');
+assert.strictEqual(new Set(base.map(item => item.designId)).size, 23, 'fixed ground IDs are unique');
 assert.deepStrictEqual(base.map(item => item.designId), [
   'base-ground-path-0', 'base-ground-path-1', 'base-ground-path-2', 'base-ground-path-3',
   'base-ground-yard', 'base-ground-rotation-0', 'base-ground-rotation-1', 'base-ground-rotation-2',
-  'base-ground-rotation-3', 'base-ground-herb-zone', 'base-ground-lawn-west', 'base-ground-lawn-east'
+  'base-ground-rotation-3', 'base-ground-herb-zone', 'base-ground-lawn-west', 'base-ground-lawn-east',
+  'base-ground-green-g1', 'base-ground-green-g2', 'base-ground-green-g3', 'base-ground-green-g4',
+  'base-ground-green-g5', 'base-ground-green-g6-1', 'base-ground-green-g6-2', 'base-ground-green-g7-1',
+  'base-ground-green-g7-2', 'base-ground-green-g7-3', 'base-ground-green-g7-4'
 ]);
+
+assert.strictEqual(GROUND_FEATURE_MATERIALS['area-crimson-clover'].label, 'クリムソンクローバー', 'crimson clover material is registered');
+assert.strictEqual(GROUND_FEATURE_MATERIALS['area-green-manure'].label, '緑肥（ソルゴー/ベッチ）', 'green manure material is registered');
+assert.strictEqual(GROUND_FEATURE_CATALOG_BY_TYPE.get('crimson-clover').defaultLayer, 'lawn', 'crimson clover uses lawn layer');
+assert.strictEqual(GROUND_FEATURE_CATALOG_BY_TYPE.get('green-manure').defaultLayer, 'lawn', 'green manure uses lawn layer');
+const materialStub = {
+  planPath: new THREE.MeshBasicMaterial(), planSoil: new THREE.MeshBasicMaterial(), planClover: new THREE.MeshBasicMaterial(), planGravel: new THREE.MeshBasicMaterial(),
+  path: new THREE.MeshBasicMaterial(), rotationSoil: new THREE.MeshBasicMaterial(), pergolaGravel: new THREE.MeshBasicMaterial(), clover: new THREE.MeshBasicMaterial(),
+  yardGravel: new THREE.MeshBasicMaterial(), guestSoil: new THREE.MeshBasicMaterial()
+};
+const featureMaterials = createGroundFeatureMaterials(THREE, materialStub);
+assert.strictEqual(featureMaterials.plan['area-crimson-clover'].color.getHex(), 0xc07078, 'PLAN crimson clover color');
+assert.strictEqual(featureMaterials.plan['area-green-manure'].color.getHex(), 0x7d8f5a, 'PLAN green manure color');
+assert.strictEqual(featureMaterials.real['area-crimson-clover'], materialStub.clover, 'REAL crimson clover reuses clover material');
+assert.strictEqual(featureMaterials.real['area-green-manure'], materialStub.clover, 'REAL green manure reuses clover material');
+const greenZones = base.slice(12);
+greenZones.forEach(item => {
+  assert.strictEqual(item.kind, 'area', `${item.designId} is an area`);
+  assert.strictEqual(item.category, 'green', `${item.designId} is green category`);
+  assert.strictEqual(item.layer, 'lawn', `${item.designId} follows lawn visibility`);
+  assert.strictEqual(item.y, 0.036, `${item.designId} uses green-manure surface height`);
+  assert(item.points.length >= 3, `${item.designId} has a drawable polygon`);
+  assert(item.points.every(point => Number.isFinite(point.x) && Number.isFinite(point.z)), `${item.designId} coordinates are finite`);
+  assert(GROUND_GEOMETRY_UTILS.polygonArea(item.points) > 0, `${item.designId} has positive area`);
+});
+assert.strictEqual(greenZones[0].materialId, 'area-crimson-clover', 'G1 uses crimson clover');
+assert.strictEqual(greenZones[1].materialId, 'area-green-manure', 'G2 uses green manure rotation');
+greenZones.slice(2).forEach(item => assert.strictEqual(item.materialId, 'area-clover', `${item.designId} uses clover`));
 
 const expectedPaths = [
   { points: [{ x: -16, z: -2.8 }, { x: 19.5, z: -2.8 }], width: 2 },
@@ -125,7 +156,7 @@ const defaults = {
 const state = createDesignState({ baseTrees: DATA.trees, baseObjects: [], baseGroundFeatures: base, defaults, storageKey: 'ground-layout-test' });
 assert.deepStrictEqual(state.plans.A.groundLayout, { overrides: {}, additions: [] }, 'groundLayout migration supplies empty plan A layout');
 assert.deepStrictEqual(state.plans.B.groundLayout, { overrides: {}, additions: [] }, 'groundLayout migration supplies empty plan B layout');
-assert.strictEqual(state.resolveGroundFeatures('A').length, 12, 'empty groundLayout resolves fixed features only');
+assert.strictEqual(state.resolveGroundFeatures('A').length, 23, 'empty groundLayout resolves fixed features only');
 
 state.updateGroundFeature('base-ground-path-0', { points: [{ x: -15.75, z: -2.8 }, { x: 19.5, z: -2.8 }], width: 1.8, materialId: 'path-soil' }, 'A');
 assert.strictEqual(state.resolveGroundFeatures('A')[0].width, 1.8, 'plan A width override');
@@ -137,8 +168,8 @@ assert.strictEqual(state.resolveGroundFeatures('A')[0].width, 1.8, 'ground redo 
 
 const additionId = state.addGroundFeature('flower-bed', { points: [{ x: -9, z: 5 }, { x: -7, z: 5 }, { x: -7, z: 7 }, { x: -9, z: 7 }], materialId: 'area-flower-bed' }, 'A');
 assert(additionId.startsWith('added-ground-'), 'addition ID is namespaced');
-assert.strictEqual(state.resolveGroundFeatures('A').length, 13, 'addition appears in plan A');
-assert.strictEqual(state.resolveGroundFeatures('B').length, 12, 'addition does not leak into plan B');
+assert.strictEqual(state.resolveGroundFeatures('A').length, 24, 'addition appears in plan A');
+assert.strictEqual(state.resolveGroundFeatures('B').length, 23, 'addition does not leak into plan B');
 assert.strictEqual(state.removeGroundFeature(additionId, 'A'), true, 'addition can be removed');
 assert.strictEqual(state.undoGround('A'), true, 'removed addition is undoable');
 

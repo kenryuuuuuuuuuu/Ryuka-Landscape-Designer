@@ -21,7 +21,7 @@ Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThr
 - `js/design-state.js`: 固定植栽・固定設備に対するプラン別差分、追加要素、移行、保存、独立したundo / redo履歴を管理します。
 - `js/plant-editor.js`: 植栽の選択、配置検証、PCドラッグ、キーボード・モバイル編集操作を担当します。
 - `js/object-editor.js`: 外構設備・家具の選択、OBB配置検証、PCドラッグ、キーボード・モバイル編集操作を担当します。
-- `js/ground-feature-catalog.js`: 固定地表12件と追加可能な園路・区画11種類、素材・レイヤー・配置既定値を定義します。
+- `js/ground-feature-catalog.js`: 固定地表23件と追加可能な園路・区画13種類、素材・レイヤー・配置既定値を定義します。
 - `js/ground-feature-models.js`: ポリラインから園路リボンを生成し、単純ポリゴン検証、REAL/PLANモデル、面積・延長集計を提供します。
 - `js/ground-feature-editor.js`: 地表要素と頂点の選択、ドラッグ、幅・素材変更、複製、モバイル操作を担当します。
 - `vendor/GLTFLoader.js`: Three.js r128と同revisionの公式non-module GLTFLoader（MIT）です。
@@ -49,7 +49,7 @@ Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThr
 
 季節、成長年数、表示レイヤー、カメラ、PLAN A/Bは実行時状態です。植栽編集は既存木を`base-tree-N`、外構編集は固定設備を`base-object-*`で識別し、移動を`overrides`、追加要素を`additions`としてプラン別に保存します。`plantLayout`と`objectLayout`は別データで、undo / redo履歴もプランごと・編集種別ごとに最大50操作です。編集・読み込み・初期化のいずれも`window.DATA`へ書き込まず、空の差分では固定値からv4.7と同じ初期配置を解決します。
 
-地表編集は`groundLayout`へ固定要素の`overrides`と追加要素の`additions`をPLAN A/B別に保存します。固定12件は`DATA.paths`、作業ヤード、輪作区画、ハーブ帯、芝生・クローバーから実行時に決定的に解決され、固定データへIDや編集結果を書き戻しません。園路は中心線2〜24点と幅からbutt cap・miter制限付きリボンを生成し、区画は3〜24点の単純ポリゴンとして検証します。
+地表編集は`groundLayout`へ固定要素の`overrides`と追加要素の`additions`をPLAN A/B別に保存します。固定23件は`DATA.paths`、作業ヤード、輪作区画、ハーブ帯、芝生・クローバー、クリムソンクローバー、緑肥ローテーションから実行時に決定的に解決され、固定データへIDや編集結果を書き戻しません。園路は中心線2〜24点と幅からbutt cap・miter制限付きリボンを生成し、区画は3〜24点の単純ポリゴンとして検証します。
 
 地表rootは重心をローカル原点とし、子Meshと輪郭だけをローカル座標で保持します。頂点ドラッグは対象要素だけをプレビューし、確定時に1履歴として保存します。植栽・設備・地表の履歴は完全に分離され、各プラン・各種別につき最大50操作です。編集モードも相互排他で、計測・一人称歩行・スマホジョイスティックと同時に動作しません。
 
