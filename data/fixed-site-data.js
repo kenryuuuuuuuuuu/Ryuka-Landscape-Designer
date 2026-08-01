@@ -11,12 +11,35 @@
   }
 
   global.DATA = deepFreeze({
+    // 天領住宅Ver5の宅地11点と、旧敷地から新宅地北端より北を除いた畑を結合した外周。
     site: [
-      { n: 'A', x: -19.906, z: 5.284 }, { n: 'B', x: -13.730, z: -14.345 },
-      { n: 'C', x: 19.636, z: -14.127 }, { n: 'D', x: 21.559, z: 5.755 },
-      { n: 'E', x: -7.559, z: 17.433 }
+      { n: 'A', x: -12.746, z: -14.954 }, { n: 'B', x: 14.264, z: -14.954 },
+      { n: 'C', x: 16.614, z: -12.764 }, { n: 'D', x: 16.614, z: -9.664 },
+      { n: 'E', x: 19.954, z: -9.664 }, { n: 'F', x: 19.954, z: -3.854 },
+      { n: 'G', x: 20.629611, z: -3.854 }, { n: 'H', x: 21.559, z: 5.755 },
+      { n: 'I', x: -7.559, z: 17.433 }, { n: 'J', x: -19.906, z: 5.284 },
+      { n: 'K', x: -16.716215, z: -4.854 }, { n: 'L', x: -12.371, z: -4.854 },
+      { n: 'M', x: -13.346, z: -8.727 }, { n: 'N', x: -13.599, z: -12.179 }
     ],
-    edgeLengths: [20.579, 33.366, 19.974, 31.374, 17.322],
+    edgeLengths: [27.010000, 3.212258, 3.100000, 3.340000, 5.810000, 0.675611, 9.653841,
+      31.372498, 17.321854, 10.627971, 4.345215, 3.993840, 3.461259, 2.903142],
+    // 宅地単独（v5の11頂点を建物origin基準でワールド座標へ変換）。
+    takuchiSite: [
+      { x: -12.746, z: -14.954 }, { x: 14.264, z: -14.954 },
+      { x: 16.614, z: -12.764 }, { x: 16.614, z: -9.664 },
+      { x: 19.954, z: -9.664 }, { x: 19.954, z: -3.854 },
+      { x: 13.164, z: -3.854 }, { x: 13.164, z: -4.854 },
+      { x: -12.371, z: -4.854 }, { x: -13.346, z: -8.727 },
+      { x: -13.599, z: -12.179 }
+    ],
+    // 旧5点敷地の畑側を、上記宅地の2段南端でクリップした形状。
+    fieldSite: [
+      { x: -19.906, z: 5.284 }, { x: -16.716215, z: -4.854 },
+      { x: 13.164, z: -4.854 }, { x: 13.164, z: -3.854 },
+      { x: 20.629611, z: -3.854 }, { x: 21.559, z: 5.755 },
+      { x: -7.559, z: 17.433 }
+    ],
+    siteBoundary: { stepX: 13.164, westZ: -4.854, eastZ: -3.854 },
     building: {
       // === 外接直方体（衝突判定・環境モデル・互換用）===
       cx: 2.209, cz: -9.2215, w: 19.110, d: 7.735,
@@ -48,35 +71,41 @@
       areas: { kenchiku: 139.08, floor1: 115.51, floor2: 40.57, nobeyuka: 156.08, roofedNonFloor: 23.57 },
       appliedSiteArea: 319.67,
 
-      // 開口部（lx=建物西端からの局所座標、sillは1FL基準）
-      // ※位置は平面図の建具記号からの読み取り。寸法は呼称からの推定で、建具表での確定待ち。
+      // 開口部（天領住宅Ver5の四面立面図を画像解析し、GL〜基礎天端を基準に実測）。
+      // lx=建物西端からの局所座標、lz=真の北端からの局所座標、sill=各階FL基準。
       openings: [
-        { face: 'N', lx: 1.820, w: 0.90, h: 2.30, sill: 0,     kind: 'door',   id: 'AD0923',  label: '民泊 玄関' },
-        { face: 'N', lx: 5.000, w: 1.65, h: 0.90, sill: 1.100, kind: 'window', id: 'AW16509', label: '民泊 北窓' },
-        { face: 'N', lx: 10.000, w: 0.90, h: 2.30, sill: 0,    kind: 'door',   id: 'AD0923',  label: '自宅 玄関' },
-        { face: 'N', lx: 11.400, w: 0.69, h: 0.90, sill: 1.100, kind: 'window', id: 'AW06903', label: '北土間 窓' },
-        { face: 'S', lx: 3.700, w: 1.60, h: 0.90, sill: 0.900, kind: 'window', id: 'AW06520', label: '民泊リビング 腰窓（畑向き）' },
-        // ※立面図ではAW06520が縦長窓として描かれているが、平面図の呼称(0652=幅650×高さ...ではなく
-        // 実際は横長の腰窓)と施主確認により、平面図側を正として横長・幅1.6m×高さ0.9mを採用。
-        { face: 'S', lx: 5.900, w: 0.60, h: 0.50, sill: 1.100, kind: 'window', id: 'AW06005', label: '民泊リビング キッチン横の小窓' },
-        { face: 'S', lx: 9.500, w: 2.25, h: 0.90, sill: 0.900, kind: 'window', id: 'AW22509', label: '自宅リビング 腰窓' },
-        { face: 'S', lx: 11.800, w: 1.60, h: 2.20, sill: 0.050, kind: 'window', id: 'AW16022', label: '自宅リビング 掃き出し窓' },
-        { face: 'S', lx: 14.500, w: 0.60, h: 0.90, sill: 1.100, kind: 'window', id: 'AW06009', label: '自宅リビング キッチン横の小窓' },
-        { face: 'N', lx: 14.300, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 北窓' },
-        { face: 'N', lx: 17.400, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 北窓' },
-        { face: 'S', lx: 15.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室13.25 南窓' },
-        { face: 'S', lx: 18.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室 南窓' },
-        // 東面（東側立面図より）。土間から畑へ出るドアと、2階洋室の東窓。
-        // lzは北端からの奥行き局所座標。位置・寸法は立面図読み取りの暫定値、建具表未確定。
-        { face: 'E', lz: 6.200, w: 0.90, h: 2.00, sill: 0,     level: 1, kind: 'door',   id: '未確定', label: '南土間 東ドア（畑への動線）' },
-        { face: 'E', lz: 2.200, w: 0.60, h: 0.90, sill: 1.100, level: 1, kind: 'window', id: '未確定', label: '1階 東窓（洗面まわり）' },
-        { face: 'E', lz: 2.000, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室7.45 東窓' },
-        { face: 'E', lz: 4.500, w: 1.60, h: 0.90, sill: 1.100, level: 2, kind: 'window', id: 'AW16009', label: '2階 洋室7.45 東窓' }
+        { face: 'N', lx: 1.175, w: 0.95, h: 2.33, sill: 0.00, kind: 'door', id: 'V5-N-01', label: '民泊 玄関ドア' },
+        { face: 'N', lx: 4.360, w: 1.76, h: 1.03, sill: 1.33, kind: 'window', id: 'V5-N-02', label: '民泊 北窓' },
+        { face: 'N', lx: 10.000, w: 0.95, h: 2.33, sill: 0.00, kind: 'door', id: 'V5-N-03', label: '自宅 玄関ドア' },
+        { face: 'N', lx: 14.460, w: 1.76, h: 0.45, sill: 1.97, level: 2, kind: 'window', id: 'V5-N-04', label: '2階 北スリット窓' },
+        { face: 'S', lx: 3.585, w: 1.77, h: 1.03, sill: 1.22, kind: 'window', id: 'V5-S-01', label: '民泊 腰窓' },
+        { face: 'S', lx: 5.880, w: 0.70, h: 0.56, sill: 1.69, kind: 'window', id: 'V5-S-02', label: '民泊 小窓' },
+        { face: 'S', lx: 9.200, w: 1.80, h: 1.03, sill: 1.25, kind: 'window', id: 'V5-S-03', label: '自宅 腰窓' },
+        { face: 'S', lx: 10.150, w: 0.70, h: 0.96, sill: 1.29, kind: 'window', id: 'V5-S-04', label: '自宅 小窓（西）' },
+        { face: 'S', lx: 11.665, w: 1.73, h: 2.26, sill: 0.19, kind: 'window', id: 'V5-S-05', label: '自宅LDK 掃き出し窓' },
+        { face: 'S', lx: 14.620, w: 0.70, h: 0.96, sill: 1.29, kind: 'window', id: 'V5-S-06', label: '自宅 小窓（東）' },
+        { face: 'S', lx: 14.635, w: 1.73, h: 0.96, sill: 1.32, level: 2, kind: 'window', id: 'V5-S-07', label: '2階 南窓①' },
+        { face: 'S', lx: 17.385, w: 1.77, h: 0.96, sill: 1.32, level: 2, kind: 'window', id: 'V5-S-08', label: '2階 南窓②' },
+        { face: 'E', lz: 1.705, w: 1.71, h: 0.97, sill: 1.28, level: 2, kind: 'window', id: 'V5-E-01', label: '2階 東窓①' },
+        { face: 'E', lz: 4.445, w: 1.71, h: 0.97, sill: 1.28, level: 2, kind: 'window', id: 'V5-E-02', label: '2階 東窓②' },
+        { face: 'E', lz: 3.065, w: 0.81, h: 0.36, sill: 2.23, level: 1, kind: 'window', id: 'V5-E-03', label: '1階 東の細長窓' },
+        { face: 'E', lz: 7.000, w: 0.85, h: 2.33, sill: 0.00, level: 1, kind: 'door', id: 'V5-E-04', label: '南土間 東のルーバー戸' },
+        { face: 'W', lz: 2.470, w: 0.72, h: 0.60, sill: 1.86, level: 2, kind: 'window', id: 'V5-W-01', label: '2階 西妻の小窓' },
+        { face: 'W', lz: 3.895, w: 1.37, h: 0.39, sill: 2.32, level: 1, kind: 'window', id: 'V5-W-02', label: '平屋 西の細長窓' }
+      ],
+      sodekabe: [
+        { lx0: 9.30, lx1: 11.40, faceZ: 0.455, offset: 1.20, top: 3.13, mat: 'sugi', note: '自宅玄関' },
+        { lx0: 0.45, lx1: 2.55, faceZ: 0.910, offset: 1.20, top: 2.07, mat: 'wall', note: '民泊玄関' }
+      ],
+      screenWalls: [
+        { x0: -0.18, x1: 0.00, z0: 6.370, z1: 7.280, faceZ: 6.370, note: 'A1西端・南コーナー' },
+        { x0: 12.560, x1: 12.740, z0: 6.370, z1: 7.280, faceZ: 6.370, note: 'A2東端・南コーナー' }
       ],
       doorX: 2.654,
     },
-    siteArea: 988.87,
-    takuchiArea: 319,
+    siteArea: 971.02,
+    takuchiArea: 319.67,
+    takuchiGeometryArea: 320.95,
     lat: 33.32,
     lon: 130.94,
     paths: [

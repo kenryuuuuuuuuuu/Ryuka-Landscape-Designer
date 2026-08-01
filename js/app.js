@@ -24,20 +24,24 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function seeded(seed){let s=seed>>>0;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296)}
 function polyArea(p){let s=0;for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length];s+=a.x*b.z-b.x*a.z}return Math.abs(s)/2}
 function validateFixedSiteData(){
- const errors=[],required=['site','edgeLengths','building','siteArea','takuchiArea','lat','lon','paths','rotations','trees','facilities','guestGarden','herbs','lawn','labels'];
+ const errors=[],required=['site','edgeLengths','takuchiSite','fieldSite','siteBoundary','building','siteArea','takuchiArea','takuchiGeometryArea','lat','lon','paths','rotations','trees','facilities','guestGarden','herbs','lawn','labels'];
  if (typeof WORKSPACES === 'undefined' || !WORKSPACES.field) {
   errors.push('workspaces.jsが読み込まれていないか、fieldワークスペースが未定義です');
  }
  required.forEach(key=>{if(DATA?.[key]===undefined||DATA[key]===null)errors.push(`必須データ「${key}」がありません`)});
- if(DATA?.site?.length!==5)errors.push(`敷地点数が5点ではありません（${DATA?.site?.length??0}点）`);
+ if(DATA?.site?.length!==14)errors.push(`統合敷地外周が14点ではありません（${DATA?.site?.length??0}点）`);
+ if(DATA?.takuchiSite?.length!==11)errors.push(`宅地境界が11点ではありません（${DATA?.takuchiSite?.length??0}点）`);
+ if(DATA?.fieldSite?.length!==7)errors.push(`畑境界が7点ではありません（${DATA?.fieldSite?.length??0}点）`);
  ['cx','cz','w','d'].forEach(key=>{if(!Number.isFinite(DATA?.building?.[key]))errors.push(`必須データ「building.${key}」がありません`)});
  if(DATA?.building?.w!==19.11||DATA?.building?.d!==7.735)errors.push('建物外接寸法が19.110 × 7.735mではありません');
  if(!Array.isArray(DATA?.building?.floor1)||DATA.building.floor1.length!==4)errors.push('1階footprintが4区間ではありません');
  if(Math.abs(DATA.building.floor1.reduce((s,f)=>s+(f.x1-f.x0)*f.depth,0)-115.51)>0.05)errors.push('1階床面積が図面値115.51㎡と一致しません');
- if(!Number.isFinite(DATA?.siteArea)||Math.abs(DATA.siteArea-988.87)>.05)errors.push(`固定敷地面積が約988.87㎡ではありません（${Number.isFinite(DATA?.siteArea)?DATA.siteArea.toFixed(2):'未設定'}㎡）`);
+ if(!Number.isFinite(DATA?.siteArea)||Math.abs(DATA.siteArea-971.02)>.05)errors.push(`固定敷地面積が約971.02㎡ではありません（${Number.isFinite(DATA?.siteArea)?DATA.siteArea.toFixed(2):'未設定'}㎡）`);
  const calculatedArea=DATA?.site?.length>=3?polyArea(DATA.site):NaN;
- if(!Number.isFinite(calculatedArea)||Math.abs(calculatedArea-988.87)>.05)errors.push(`敷地面積が約988.87㎡ではありません（${Number.isFinite(calculatedArea)?calculatedArea.toFixed(2):'計算不能'}㎡）`);
- if(Math.abs((DATA?.takuchiArea??NaN)-319)>.05)errors.push('宅地面積が約319㎡ではありません');
+ if(!Number.isFinite(calculatedArea)||Math.abs(calculatedArea-971.02)>.05)errors.push(`敷地面積が約971.02㎡ではありません（${Number.isFinite(calculatedArea)?calculatedArea.toFixed(2):'計算不能'}㎡）`);
+ const calculatedTakuchiArea=DATA?.takuchiSite?.length>=3?polyArea(DATA.takuchiSite):NaN;
+ if(!Number.isFinite(calculatedTakuchiArea)||Math.abs(calculatedTakuchiArea-320.95)>.05)errors.push(`宅地形状面積が約320.95㎡ではありません（${Number.isFinite(calculatedTakuchiArea)?calculatedTakuchiArea.toFixed(2):'計算不能'}㎡）`);
+ if(Math.abs((DATA?.takuchiArea??NaN)-319.67)>.05)errors.push('登記宅地面積が約319.67㎡ではありません');
  if(!Array.isArray(DATA?.paths)||DATA.paths.length===0)errors.push('園路データが空です');
  if(!Array.isArray(DATA?.rotations)||DATA.rotations.length!==4)errors.push(`輪作区画が4区画ではありません（${DATA?.rotations?.length??0}区画）`);
  if(!Array.isArray(DATA?.trees)||DATA.trees.length===0)errors.push('果樹・植物データが空です');
@@ -50,7 +54,8 @@ function isEffectivelyVisible(object){let current=object;while(current){if(curre
 window.RYUKA_VISIBILITY_UTILS=Object.freeze({isEffectivelyVisible});
 if(validateFixedSiteData()){
 applyWorkspace(WORKSPACES ? 'field' : null);
-function clipPoly(poly,t,keepNorth){const out=[],inside=p=>keepNorth?p.z<=t:p.z>=t;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],ia=inside(a),ib=inside(b);if(ia)out.push({...a});if(ia!==ib){const q=(t-a.z)/(b.z-a.z);out.push({x:a.x+(b.x-a.x)*q,z:t})}}return out}
+function clipPolyAxis(poly,t,keepLess,axis='z'){const out=[],other=axis==='z'?'x':'z',inside=p=>keepLess?p[axis]<=t:p[axis]>=t;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],ia=inside(a),ib=inside(b);if(ia)out.push({...a});if(ia!==ib){const q=(t-a[axis])/(b[axis]-a[axis]);out.push({[axis]:t,[other]:a[other]+(b[other]-a[other])*q})}}return out}
+function clipPoly(poly,t,keepNorth){return clipPolyAxis(poly,t,keepNorth,'z')}
 function shapeFrom(poly){const s=new THREE.Shape();poly.forEach((p,i)=>i?s.lineTo(p.x,-p.z):s.moveTo(p.x,-p.z));return s}
 function disposeObj(o){if(!o)return;o.traverse?.(c=>{c.geometry?.dispose?.();if(c.material){const ms=Array.isArray(c.material)?c.material:[c.material];ms.forEach(m=>{Object.values(m).forEach(v=>v&&v.isTexture&&v.dispose?.());m.dispose?.()})}})}
 function fmtTime(m){return`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`}
@@ -173,12 +178,20 @@ function soilRidge(w,d,mat,x,z){const m=new THREE.Mesh(new THREE.CylinderGeometr
 function spriteText(text,{scale=2.2,color='#f3ecde',bg='rgba(14,21,23,.72)'}={}){const c=document.createElement('canvas'),x=c.getContext('2d');x.font='600 54px -apple-system,"Hiragino Sans",sans-serif';const w=Math.ceil(x.measureText(text).width)+30;c.width=w;c.height=82;const y=c.getContext('2d');if(bg){y.fillStyle=bg;y.roundRect?.(0,0,c.width,c.height,12);y.fill?.();if(!y.roundRect){y.fillRect(0,0,c.width,c.height)}}y.font='600 54px -apple-system,"Hiragino Sans",sans-serif';y.textBaseline='middle';y.fillStyle=color;y.fillText(text,15,c.height/2);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,transparent:true}));s.scale.set(scale*c.width/c.height,scale,1);return s}
 
 // ---------- site / split ----------
-const zMin=Math.min(...DATA.site.map(p=>p.z)),zMax=Math.max(...DATA.site.map(p=>p.z));function northAreaAt(t){return polyArea(clipPoly(DATA.site,t,true))}
-let splitDefault=(()=>{let lo=zMin,hi=zMax;for(let i=0;i<70;i++){const m=(lo+hi)/2;northAreaAt(m)<DATA.takuchiArea?lo=m:hi=m}return(lo+hi)/2})();let splitT=splitDefault,siteMeshes=[];
-function buildSite(){clearRebuildGroup(groups.site);siteMeshes=[];const n=clipPoly(DATA.site,splitT,true),s=clipPoly(DATA.site,splitT,false);const mn=meshShape(n,STATE.mode==='real'?GROUND.takuchi:GROUND.planTak,.002),ms=meshShape(s,STATE.mode==='real'?GROUND.field:GROUND.planField,.003);groups.site.add(mn,ms);siteMeshes.push(mn,ms);tag(mn,{title:'北側宅地',body:'建物・進入路・作業ヤードを含む宅地想定エリア。',meta:[['面積',northAreaAt(splitT).toFixed(1)+'㎡'],['基準','登記値319㎡']]});tag(ms,{title:'南側の畑',body:'収穫体験、輪作、果樹、ハーブ、広場、パーゴラをまとめたランドスケープエリア。',meta:[['面積',(polyArea(DATA.site)-northAreaAt(splitT)).toFixed(1)+'㎡']]});
- $('northArea').textContent=northAreaAt(splitT).toFixed(1)+'㎡';$('fieldArea').textContent=(polyArea(DATA.site)-northAreaAt(splitT)).toFixed(1)+'㎡';buildBoundary()}
+const zMin=Math.min(...DATA.site.map(p=>p.z)),zMax=Math.max(...DATA.site.map(p=>p.z));
+const splitDefault=DATA.siteBoundary.westZ;
+let splitT=splitDefault,siteMeshes=[];
+function splitSitePolygons(t){
+ if(Math.abs(t-splitDefault)<1e-8)return{north:[DATA.takuchiSite],south:[DATA.fieldSite]};
+ const stepX=DATA.siteBoundary.stepX,eastT=t+(DATA.siteBoundary.eastZ-DATA.siteBoundary.westZ),left=clipPolyAxis(DATA.site,stepX,true,'x'),right=clipPolyAxis(DATA.site,stepX,false,'x');
+ return{north:[clipPoly(left,t,true),clipPoly(right,eastT,true)].filter(p=>p.length>=3&&polyArea(p)>1e-6),south:[clipPoly(left,t,false),clipPoly(right,eastT,false)].filter(p=>p.length>=3&&polyArea(p)>1e-6)};
+}
+function northAreaAt(t){return splitSitePolygons(t).north.reduce((sum,p)=>sum+polyArea(p),0)}
+function buildSite(){clearRebuildGroup(groups.site);siteMeshes=[];const split=splitSitePolygons(splitT),northArea=northAreaAt(splitT),fieldArea=polyArea(DATA.site)-northArea,northInfo={title:'北側宅地',body:'天領住宅Ver5の11頂点実測ポリゴン。東側転回エリアに合わせて南端が1m後退する。',meta:[['形状面積',northArea.toFixed(1)+'㎡'],['登記面積',DATA.takuchiArea.toFixed(2)+'㎡']]},fieldInfo={title:'南側の畑',body:'旧敷地から新宅地と重なる北側を除いたランドスケープエリア。',meta:[['面積',fieldArea.toFixed(1)+'㎡']]};
+ split.north.forEach(poly=>{const mesh=meshShape(poly,STATE.mode==='real'?GROUND.takuchi:GROUND.planTak,.002);groups.site.add(mesh);siteMeshes.push(mesh);tag(mesh,northInfo)});split.south.forEach(poly=>{const mesh=meshShape(poly,STATE.mode==='real'?GROUND.field:GROUND.planField,.003);groups.site.add(mesh);siteMeshes.push(mesh);tag(mesh,fieldInfo)});
+ $('siteArea').textContent=DATA.siteArea.toFixed(2)+'㎡';$('northArea').textContent=northArea.toFixed(1)+'㎡';$('fieldArea').textContent=fieldArea.toFixed(1)+'㎡';buildBoundary()}
 let boundaryObjects=[];
-function buildBoundary(){boundaryObjects.forEach(o=>{groups.guides.remove(o);disposeObj(o)});boundaryObjects=[];const pts=DATA.site.map(p=>new THREE.Vector3(p.x,.08,p.z));pts.push(pts[0].clone());const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:STATE.mode==='real'?0xf2eadc:0xffffff,transparent:true,opacity:.92}));groups.guides.add(line);boundaryObjects.push(line);const n=clipPoly(DATA.site,splitT,true),xs=n.filter(p=>Math.abs(p.z-splitT)<1e-5).map(p=>p.x);if(xs.length>1){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(Math.min(...xs),.1,splitT),new THREE.Vector3(Math.max(...xs),.1,splitT)]),l=new THREE.Line(g,new THREE.LineDashedMaterial({color:0xffffff,dashSize:.8,gapSize:.55,transparent:true,opacity:.82}));l.computeLineDistances();groups.guides.add(l);boundaryObjects.push(l)}groups.guides.visible=STATE.guides.boundary}
+function buildBoundary(){boundaryObjects.forEach(o=>{groups.guides.remove(o);disposeObj(o)});boundaryObjects=[];const pts=DATA.site.map(p=>new THREE.Vector3(p.x,.08,p.z));pts.push(pts[0].clone());const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:STATE.mode==='real'?0xf2eadc:0xffffff,transparent:true,opacity:.92}));groups.guides.add(line);boundaryObjects.push(line);const split=splitSitePolygons(splitT),stepX=DATA.siteBoundary.stepX,eastT=splitT+(DATA.siteBoundary.eastZ-DATA.siteBoundary.westZ),all=split.north.flat(),westXs=all.filter(p=>p.x<=stepX+1e-5&&Math.abs(p.z-splitT)<1e-5).map(p=>p.x),eastXs=all.filter(p=>p.x>=stepX-1e-5&&Math.abs(p.z-eastT)<1e-5).map(p=>p.x);if(westXs.length&&eastXs.length){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(Math.min(...westXs),.1,splitT),new THREE.Vector3(stepX,.1,splitT),new THREE.Vector3(stepX,.1,eastT),new THREE.Vector3(Math.max(...eastXs),.1,eastT)]),l=new THREE.Line(g,new THREE.LineDashedMaterial({color:0xffffff,dashSize:.8,gapSize:.55,transparent:true,opacity:.82}));l.computeLineDistances();groups.guides.add(l);boundaryObjects.push(l)}groups.guides.visible=STATE.guides.boundary}
 
 // ---------- building ----------
 function buildBuilding(){clearRebuildGroup(groups.building);groups.building.add(createBuildingModel({data:DATA.building,materials:BUILDING,mode:STATE.mode,tag}))}

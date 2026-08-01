@@ -189,17 +189,17 @@ body.walking #timeline,body.walking #compareBadge{display:none}
     </div>
     <div class="section" data-section="measure"><h3>MEASURE</h3><div class="grid2"><button class="action" id="measureBtn">距離を計測</button><button class="action" id="clearMeasureBtn">計測を消去</button></div></div>
     <div class="section" data-section="siteInfo"><h3>SITE DATA</h3><div class="data-card"><dl>
-      <dt>敷地面積</dt><dd id="siteArea">988.87㎡</dd><dt>北側宅地</dt><dd id="northArea">319.0㎡</dd><dt>南側畑</dt><dd id="fieldArea">669.9㎡</dd><dt>建物寸法</dt><dd>19.11 × 7.735m</dd><dt>座標系</dt><dd>x=東 / z=南</dd>
+      <dt>敷地面積</dt><dd id="siteArea">971.02㎡</dd><dt>北側宅地</dt><dd id="northArea">320.9㎡</dd><dt>南側畑</dt><dd id="fieldArea">650.1㎡</dd><dt>建物寸法</dt><dd>19.11 × 7.735m</dd><dt>座標系</dt><dd>x=東 / z=南</dd>
     </dl></div></div>
-    <div class="section" data-section="boundaryAdjustment"><h3>BOUNDARY ADJUSTMENT</h3><div class="range-row"><label>分筆線</label><input id="splitPos" type="range" min="0" max="1000" value="500"><output id="splitOut">±0.0m</output></div><p class="section-note">元HTMLと同様の検討用調整です。初期値が宅地319㎡となる推定位置です。</p></div>
+    <div class="section" data-section="boundaryAdjustment"><h3>BOUNDARY ADJUSTMENT</h3><div class="range-row"><label>分筆線</label><input id="splitPos" type="range" min="0" max="1000" value="500"><output id="splitOut">±0.0m</output></div><p class="section-note">初期値は天領住宅Ver5の11頂点宅地境界です。東側転回エリアに沿って南端が1m後退します。</p></div>
     <div class="section" data-section="planAB"><h3>PLAN A / B</h3><div class="grid2"><button class="action on" id="planABtn">プランA</button><button class="action" id="planBBtn">プランB</button></div><div class="grid2" style="margin-top:7px"><button class="action" id="savePlanBtn">現在案を保存</button><button class="action" id="resetPlanBtn">案を初期化</button></div><p class="section-note">季節・年数・密度・輪作パターンを案ごとに保存し、同一視点で切り替えて比較します。</p></div>
     <div class="section" data-section="project"><h3>PROJECT</h3><div class="grid2"><button class="action" id="exportBtn">設定を書き出す</button><button class="action" id="importBtn">設定を読み込む</button></div><input type="file" id="importFile" accept="application/json" hidden></div>
-    <div class="section" data-section="dataPolicy"><h3>DATA POLICY</h3><p class="section-note">敷地A〜E、辺長、建物中心・寸法、初期植栽・施設座標はv2.2の値を固定データとして保持しています。表示モードや素材変更では座標を変更しません。</p></div>
+    <div class="section" data-section="dataPolicy"><h3>DATA POLICY</h3><p class="section-note">統合敷地A〜Nと宅地11点境界は天領住宅Ver5図面を基準に保持し、初期植栽・施設座標は従来値を維持しています。表示モードや素材変更では固定座標を変更しません。</p></div>
   </section>
 </aside>
 
 <aside id="inspector">
-  <div class="ins-kicker">SELECTED AREA</div><h2 id="insTitle">Ryuka 石井敷地</h2><div class="ins-body" id="insBody">各ゾーンや果樹をクリックすると、用途と座標情報を確認できます。</div><div class="ins-meta" id="insMeta"><span>敷地</span><span>約988.87㎡</span><span>表示</span><span>リアル</span></div>
+  <div class="ins-kicker">SELECTED AREA</div><h2 id="insTitle">Ryuka 石井敷地</h2><div class="ins-body" id="insBody">各ゾーンや果樹をクリックすると、用途と座標情報を確認できます。</div><div class="ins-meta" id="insMeta"><span>敷地</span><span>約971.02㎡</span><span>表示</span><span>リアル</span></div>
 </aside>
 
 <div id="timeline">
