@@ -14,9 +14,6 @@
       forestBroadleaf: standard(0x496a48, 1),
       forestConifer: standard(0x365b43, 1),
       forestSilhouette: new THREE.MeshBasicMaterial({ color: 0x5f7860 }),
-      shoulder: standard(0x9b9984, 1),
-      ditch: standard(0x697174, 0.96),
-      verge: standard(0x718b61, 1),
       contactShadow: new THREE.MeshBasicMaterial({ color: 0x1d251e, transparent: true, opacity: 0.16, depthWrite: false }),
       sun: new THREE.MeshBasicMaterial({ color: 0xffd28a }),
       glow: new THREE.SpriteMaterial({ color: 0xffc885, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending })

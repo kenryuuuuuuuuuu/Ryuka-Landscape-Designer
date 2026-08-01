@@ -143,7 +143,9 @@
         box(root, 3.6, 2.3, 2.7, material, 0, 0, 1.15);
         box(root, 3.95, 0.14, 3.05, options.roof, 0, 0, 2.38);
         {
-          const door = box(root, 0.9, 1.75, 0.08, options.wood, 0, Number.isFinite(object.doorOffsetZ) ? object.doorOffsetZ : 1.38, 0.88);
+          const door = box(root, 0.9, 1.75, 0.08, options.wood,
+            Number.isFinite(object.doorOffsetX) ? object.doorOffsetX : 0,
+            Number.isFinite(object.doorOffsetZ) ? object.doorOffsetZ : 1.38, 0.88);
           door.name = 'shed-door';
         }
         break;

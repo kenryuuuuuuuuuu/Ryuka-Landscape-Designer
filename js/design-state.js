@@ -141,6 +141,7 @@
         clearance: profile.clearance, footprint: profile.footprint || 'box',
         bedKind: profile.type === 'raised-bed' ? (size.sizePreset === 'herb-bed' ? 'herb' : 'guest') : undefined,
         seed: profile.type === 'raised-bed' && finite(item.seed) ? Number(item.seed) : undefined,
+        doorOffsetX: profile.type === 'tool-shed' && finite(item.doorOffsetX) ? Number(item.doorOffsetX) : 0,
         doorOffsetZ: profile.type === 'tool-shed' && finite(item.doorOffsetZ) ? Number(item.doorOffsetZ) : profile.doorOffsetZ
       });
     });
@@ -349,6 +350,7 @@
         clearance: profile.clearance, footprint: profile.footprint || 'box',
         bedKind: type === 'raised-bed' ? (size.sizePreset === 'herb-bed' ? 'herb' : (source?.bedKind || 'guest')) : undefined,
         seed: type === 'raised-bed' ? (finite(source?.seed) ? Number(source.seed) : 500) : undefined,
+        doorOffsetX: type === 'tool-shed' ? (finite(source?.doorOffsetX) ? Number(source.doorOffsetX) : 0) : undefined,
         doorOffsetZ: type === 'tool-shed' ? (finite(source?.doorOffsetZ) ? Number(source.doorOffsetZ) : profile.doorOffsetZ) : undefined
       };
       mutateObject(layout => layout.additions.push(item), key);

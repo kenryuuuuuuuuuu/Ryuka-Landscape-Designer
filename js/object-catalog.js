@@ -28,8 +28,15 @@
     const G = data.guestGarden;
     const H = data.herbs;
     const L = data.lawn;
+    const shedRotation = Number(F.shed.rotation) || 0;
+    const shedDoorDx = F.shedDoor.x - F.shed.x, shedDoorDz = F.shedDoor.z - F.shed.z;
+    const shedDoorOffsetX = Math.cos(shedRotation) * shedDoorDx - Math.sin(shedRotation) * shedDoorDz;
+    const shedDoorOffsetZ = Math.sin(shedRotation) * shedDoorDx + Math.cos(shedRotation) * shedDoorDz;
     const objects = [
-      item('base-object-tool-shed', 'tool-shed', F.shed.x, F.shed.z, { layer: 'facilities', doorOffsetZ: F.shedDoor.z - F.shed.z }),
+      item('base-object-tool-shed', 'tool-shed', F.shed.x, F.shed.z, {
+        layer: 'facilities', rotation: shedRotation, baseRotation: shedRotation,
+        doorOffsetX: shedDoorOffsetX, doorOffsetZ: shedDoorOffsetZ
+      }),
       item('base-object-garden-bench', 'garden-bench', G.bench.x, G.bench.z, { layer: 'guestBeds' }),
       ...G.beds.map((p, index) => item(`base-object-guest-bed-${index}`, 'raised-bed', p.x, p.z, { layer: 'guestBeds', width: 2.4, depth: 1.2, bedKind: 'guest', sizePreset: 'guest-bed', seed: 100 + index })),
       ...H.beds.map((p, index) => item(`base-object-herb-bed-${index}`, 'raised-bed', p.x, p.z, { layer: 'herbs', width: 2.2, depth: 1.1, bedKind: 'herb', sizePreset: 'herb-bed', seed: 220 + index })),

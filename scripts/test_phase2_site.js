@@ -107,7 +107,22 @@ DATA.lawn.east.forEach((point, i) => add(`lawn.east[${i}]`, point));
 add('lawn.pergola', DATA.lawn.pergola);
 
 const outside = points.filter(({ point }) => !contains(DATA.takuchiSite, point) && !contains(DATA.fieldSite, point));
-assert.deepStrictEqual(outside.map(item => item.name), ['facilities.yard[1]']);
+assert.deepStrictEqual(outside.map(item => item.name), []);
+DATA.facilities.yard.forEach((point, index) => assert(contains(DATA.fieldSite, point), `yard corner outside field: ${index}`));
+DATA.paths.forEach((polygon, pathIndex) => polygon.forEach((point, pointIndex) => {
+  assert(contains(DATA.fieldSite, point), `path ${pathIndex} point ${pointIndex} outside field`);
+}));
+for (const point of [DATA.facilities.shed, DATA.facilities.shedDoor, ...DATA.facilities.storage]) {
+  assert(contains(DATA.fieldSite, point), `shed-area point outside field: ${JSON.stringify(point)}`);
+}
+assert(Math.abs(DATA.facilities.shed.rotation + Math.PI / 2) < 1e-12, 'shed faces west toward the field center');
+assert(DATA.facilities.shedDoor.x < DATA.facilities.shed.x && Math.abs(DATA.facilities.shedDoor.z - DATA.facilities.shed.z) < 1e-9, 'shed door is on the field-center side');
+DATA.facilities.storage.forEach(point => assert(point.x > DATA.facilities.shed.x, 'materials stay east of the shed entrance'));
+const yuzu = DATA.trees.find(tree => tree.name === 'ユズ');
+const kumquat = DATA.trees.find(tree => tree.name === 'キンカン');
+assert(yuzu && kumquat);
+assert(yuzu.z - yuzu.r > Math.max(...DATA.facilities.yard.map(point => point.z)), 'yuzu crown overlaps the work yard');
+assert(Math.hypot(yuzu.x - kumquat.x, yuzu.z - kumquat.z) > yuzu.r + kumquat.r, 'relocated yuzu overlaps kumquat');
 assert.strictEqual(DATA.building.openings.length, 18);
 assert.strictEqual(DATA.building.sodekabe.length, 2);
 assert.strictEqual(DATA.building.screenWalls.length, 2);

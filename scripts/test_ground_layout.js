@@ -43,7 +43,7 @@ assert.deepStrictEqual(base.map(item => item.designId), [
 
 const expectedPaths = [
   { points: [{ x: -16, z: -2.8 }, { x: 19.5, z: -2.8 }], width: 2 },
-  { points: [{ x: 15, z: -4.45 }, { x: 19.5, z: -4.45 }], width: 1.3 },
+  { points: [{ x: 15, z: -3.82 }, { x: 19.5, z: -3.82 }], width: 0.04 },
   { points: [{ x: 0.6, z: -1.8 }, { x: 0.6, z: 10.4 }], width: 1.6 },
   { points: [{ x: -6.2, z: 11.2 }, { x: 1.4, z: 11.2 }], width: 1.6 }
 ];

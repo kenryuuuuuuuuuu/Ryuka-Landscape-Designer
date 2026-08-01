@@ -15,7 +15,7 @@ window.WORKSPACES = {
 
     // 表示するThree.jsグループ名（groups.xxx と対応。既存 groups 定義に準拠）
     layers: [
-      'site', 'building', 'paths', 'rotations', 'trees', 'facilities',
+      'site', 'building', 'road', 'paths', 'rotations', 'trees', 'facilities',
       'guestBeds', 'herbs', 'lawn', 'objects', 'groundFeatures',
       'groundFeatureGuides', 'labels', 'guides', 'crowns'
     ],
@@ -30,7 +30,7 @@ window.WORKSPACES = {
     id: 'exterior',
     label: '宅地・外構',
     sections: [
-      'overview', 'camera', 'displayMode', 'sun', 'atmosphere', 'north',
+      'overview', 'walkthrough', 'camera', 'displayMode', 'sun', 'atmosphere', 'north',
       'appearance', 'parking', 'guides', 'measure', 'siteInfo', 'project', 'dataPolicy'
     ],
     layers: ['site', 'building', 'road', 'parking', 'guides', 'exteriorGuides'],

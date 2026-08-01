@@ -8,10 +8,7 @@
     broadleaf: new THREE.DodecahedronGeometry(0.72, 0),
     conifer: new THREE.ConeGeometry(0.7, 1.8, 7),
     trunk: new THREE.CylinderGeometry(0.1, 0.15, 1.25, 6),
-    shadow: new THREE.CircleGeometry(1, 20),
-    road: new THREE.PlaneGeometry(72, 6),
-    shoulder: new THREE.PlaneGeometry(72, 0.72),
-    ditch: new THREE.BoxGeometry(72, 0.1, 0.38)
+    shadow: new THREE.CircleGeometry(1, 20)
   });
   global.ENVIRONMENT_GEOMETRIES = GEOMETRIES;
 
@@ -98,7 +95,7 @@
   }
 
   global.createEnvironmentModel = function createEnvironmentModel(options) {
-    const { scene, renderer, materials, groundMaterial, asphaltMaterial, data } = options;
+    const { scene, renderer, materials, groundMaterial, data } = options;
     const root = new THREE.Group();
     const context = new THREE.Group();
     const contactShadows = new THREE.Group();
@@ -149,21 +146,6 @@
     ground.position.y = -0.09;
     ground.receiveShadow = true;
     context.add(ground);
-    const road = new THREE.Mesh(GEOMETRIES.road, asphaltMaterial);
-    road.rotation.x = -Math.PI / 2;
-    road.position.set(1, -0.055, -19.2);
-    road.receiveShadow = true;
-    context.add(road);
-    [-22.55, -15.85].forEach(z => {
-      const shoulder = new THREE.Mesh(GEOMETRIES.shoulder, materials.shoulder);
-      shoulder.rotation.x = -Math.PI / 2;
-      shoulder.position.set(1, -0.046, z);
-      context.add(shoulder);
-    });
-    const ditch = new THREE.Mesh(GEOMETRIES.ditch, materials.ditch);
-    ditch.position.set(1, -0.075, -15.45);
-    context.add(ditch);
-
     const mountainGeometries = [ridgeGeometry(112, 8, 4.5, 11), ridgeGeometry(154, 13, 6.5, 23), ridgeGeometry(205, 18, 7.5, 37)];
     const mountainMaterials = [materials.mountainNear, materials.mountainMiddle, materials.mountainFar];
     mountainGeometries.forEach((geometry, index) => context.add(new THREE.Mesh(geometry, mountainMaterials[index])));

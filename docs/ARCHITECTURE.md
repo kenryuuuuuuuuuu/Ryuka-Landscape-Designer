@@ -11,7 +11,7 @@ Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThr
 - `js/building-materials.js`: 建物外観の共有PBRマテリアルとPLAN用単色材を生成します。
 - `js/building-model.js`: 固定された建物寸法・開口位置からREAL/PLANモデルを構築します。
 - `js/parking-model.js`: v5確定座標の西側駐車、東側A/B/C案、低負荷な車・カーポートを構築します。
-- `js/site-model.js`: 宅地・外構ワークスペース専用の道路・転回エリア、頂点・辺長・建物寸法ガイドを構築します。
+- `js/site-model.js`: 両ワークスペース共通の道路・転回エリアと、宅地・外構用の頂点・辺長・建物寸法ガイドを構築します。
 - `js/plant-materials.js`: 樹種・季節別の共有植物マテリアルを定義します。
 - `js/plant-models.js`: 固定樹木データから樹種別の幹・枝・葉・花・果実を構築します。
 - `js/environment-materials.js`: 山並み、周辺樹林、路肩、接地影などの共有環境マテリアルを定義します。
@@ -39,7 +39,7 @@ Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThr
 
 ## ワークスペース
 
-`field`（畑レイアウト）と`exterior`（宅地・外構）をトップバーから切り替えます。`index.html`の各パネルセクションは`data-section`で識別し、`js/workspaces.js`の`sections`配列が表示対象を宣言します。`layers`配列はThree.jsのroot直下グループにも適用され、fieldでは従来の畑・植栽・外構編集を、exteriorでは宅地・建物・道路・駐車場・寸法ガイドを表示します。
+`field`（畑レイアウト）と`exterior`（宅地・外構）をトップバーから切り替えます。`index.html`の各パネルセクションは`data-section`で識別し、`js/workspaces.js`の`sections`配列が表示対象を宣言します。`layers`配列はThree.jsのroot直下グループにも適用され、道路は両方で共通表示します。fieldでは従来の畑・植栽・外構編集を、exteriorでは宅地・建物・駐車場・寸法ガイドを表示します。
 
 パネル表示を決める`sections`、3Dシーンの対象を示す`layers`、既定カメラ、KPIを同じ設定オブジェクトに集約しています。ワークスペース切替では編集・計測・歩行の競合を解消してから、セクションとrootグループの可視性を同時に更新します。ワークスペース定義は固定座標と同様に、変更理由をPRへ記録して管理します。
 
