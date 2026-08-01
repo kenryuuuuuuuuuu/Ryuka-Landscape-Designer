@@ -12,6 +12,22 @@ const STATE={mode:'real',doy:188,tod:720,northOff:0,playing:false,sunPath:true,c
 
 // ---------- utilities ----------
 const $=id=>document.getElementById(id);
+async function updateVersionDisplay(){
+ const element=$('appVersion');if(!element)return;
+ let releaseDate=element.dataset.fallbackDate;
+ if(location.protocol==='http:'||location.protocol==='https:'){
+  try{
+   const response=await fetch(location.href,{method:'HEAD',cache:'no-store'});
+   const lastModified=response.headers.get('last-modified');
+   if(lastModified){
+    const parsed=new Date(lastModified);
+    if(Number.isFinite(parsed.getTime()))releaseDate=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(parsed).replaceAll('/','-');
+   }
+  }catch(error){console.debug('[Ryuka] 配信更新日の取得を省略しました',error)}
+ }
+ element.textContent=`${element.dataset.version} · ${releaseDate.replaceAll('-','.')}`;
+}
+updateVersionDisplay();
 let workspaceGroups=null;
 function applyWorkspace(wsId) {
   const ws = WORKSPACES[wsId];
@@ -96,7 +112,7 @@ function flyTo(v){
  if(v==='top'){setTopCamera();return}
  setPerspective();
  const presets={
-  birdNE:{target:[0,1,1],r:72,a:Math.PI*.76,p:.82},birdSW:{target:[0,1,1],r:68,a:-Math.PI*.28,p:.86},south:{target:[1,2,0],r:62,a:Math.PI,p:1.18},
+  birdNE:{target:[0,1,1],r:72,a:Math.PI*.76,p:.82},birdSW:{target:[0,1,1],r:68,a:-Math.PI*.28,p:.86},south:{target:[1,2,0],r:62,a:0,p:1.18},
   guestWindow:{pos:[-4,1.3,-5.45],target:[-4.8,.9,4.0]},harvest:{pos:[-8,1.65,4.6],target:[1,1.1,5]},rotation:{pos:[7,1.65,6.0],target:[2,1.1,-2]},
   pergola:{pos:[-6.5,1.15,13.4],target:[1.5,2.0,-7]},yard:{pos:[17,1.65,-.2],target:[3,1.2,3]}
  };
