@@ -101,15 +101,17 @@ const ortho=new THREE.OrthographicCamera(-30,30,30,-30,.1,600);let camera=perspe
 
 // camera controller
 const cam={target:new THREE.Vector3(0,1,1),r:72,a:Math.PI*.76,p:.82,mode:'orbit'};
+const topTarget=new THREE.Vector3(0,0,0);
 function applyCamera(){
  if(cam.mode==='walk'){camera=perspective;camera.position.copy(walk.pos);const dir=new THREE.Vector3(Math.sin(walk.yaw)*Math.cos(walk.pitch),Math.sin(walk.pitch),Math.cos(walk.yaw)*Math.cos(walk.pitch));camera.lookAt(walk.pos.clone().add(dir));return}
  if(camera===perspective){cam.p=clamp(cam.p,.035,1.52);cam.r=clamp(cam.r,4,220);camera.position.set(cam.target.x+cam.r*Math.sin(cam.p)*Math.sin(cam.a),cam.target.y+cam.r*Math.cos(cam.p),cam.target.z+cam.r*Math.sin(cam.p)*Math.cos(cam.a));camera.lookAt(cam.target)}
 }
 function setPerspective(){if(camera!==perspective){camera=perspective;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}}
-function setTopCamera(){camera=ortho;const aspect=innerWidth/innerHeight,span=31;ortho.left=-span*aspect;ortho.right=span*aspect;ortho.top=span;ortho.bottom=-span;ortho.position.set(0,100,1);ortho.lookAt(0,0,0);ortho.updateProjectionMatrix()}
+function positionTopCamera(){ortho.position.set(topTarget.x,100,topTarget.z+1);ortho.lookAt(topTarget)}
+function setTopCamera(resetTarget=false){camera=ortho;if(resetTarget)topTarget.set(0,0,0);const aspect=innerWidth/innerHeight,span=31;ortho.left=-span*aspect;ortho.right=span*aspect;ortho.top=span;ortho.bottom=-span;positionTopCamera();ortho.updateProjectionMatrix()}
 function flyTo(v){
  document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
- if(v==='top'){setTopCamera();return}
+ if(v==='top'){setTopCamera(true);return}
  setPerspective();
  const presets={
   birdNE:{target:[0,1,1],r:72,a:Math.PI*.76,p:.82},birdSW:{target:[0,1,1],r:68,a:-Math.PI*.28,p:.86},south:{target:[1,2,0],r:62,a:0,p:1.18},
@@ -224,7 +226,7 @@ function buildBoundary(){boundaryObjects.forEach(o=>{groups.guides.remove(o);dis
 
 // ---------- building ----------
 function buildBuilding(){clearRebuildGroup(groups.building);groups.building.add(createBuildingModel({data:DATA.building,materials:BUILDING,mode:STATE.mode,tag}))}
-function buildRoad(){clearRebuildGroup(groups.road);groups.road.add(createRoadModel())}
+function buildRoad(){clearRebuildGroup(groups.road);groups.road.add(createRoadModel({roadMaterial:STATE.mode==='real'?GROUND.asphalt:GROUND.planAsphalt}))}
 function buildParking(){clearRebuildGroup(groups.parking);groups.parking.add(createParkingModel({layout:STATE.parkingLayout,showCars:STATE.showCars,showCarport:STATE.showCarport,mode:STATE.mode}));applyWorkspace(window.ACTIVE_WORKSPACE)}
 let exteriorGuideModel=null;
 function buildExteriorGuides(){clearRebuildGroup(groups.exteriorGuides);exteriorGuideModel=createExteriorGuideModel(DATA);groups.exteriorGuides.add(exteriorGuideModel.root)}
@@ -233,7 +235,24 @@ function buildExteriorGuides(){clearRebuildGroup(groups.exteriorGuides);exterior
 function buildPaths(){clearRebuildGroup(groups.paths)}
 function buildFacilities(){clearRebuildGroup(groups.facilities)}
 function groundInfo(item){return{title:item.label,body:`${item.sourceType==='base'?'固定':'追加'}の${item.kind==='path'?'園路':'地表区画'}。プラン${STATE.activePlan}の差分として管理します。`,meta:[['素材',GROUND_FEATURE_MATERIALS[item.materialId]?.label||item.materialId],['頂点',String(item.points.length)],...(item.kind==='path'?[['延長',`${item.length.toFixed(2)}m`],['幅',`${item.width.toFixed(2)}m`],['面積',`${item.area.toFixed(2)}㎡`]]:[['面積',`${item.area.toFixed(2)}㎡`],['周長',`${item.perimeter.toFixed(2)}m`]])]}}
-function buildGroundFeatures(){groundEditor?.beforeRebuild();clearRebuildGroup(groups.groundFeatures);groundFeatureObjects.clear();resolvedGroundFeatures=DESIGN.resolveGroundFeatures(STATE.activePlan);resolvedGroundFeatures.forEach(item=>{const entry=createGroundFeatureModel(item,{THREE,mode:STATE.mode,materials:GROUND_FEATURE_RENDER_MATERIALS,editing:groundEditor?.isEditing(),selected:groundEditor?.selectedId===item.designId});if(!entry)return;tag(entry.group,groundInfo(item));entry.group.visible=STATE.layers[item.layer]!==false;groups.groundFeatures.add(entry.group);groundFeatureObjects.set(item.designId,{...entry,label:null})});groundEditor?.afterRebuild()}
+const PLAN_GREEN_ZONE_LABELS=Object.freeze({
+ 'base-ground-green-g1':Object.freeze({text:'G1｜クリムソンクローバー'}),
+ 'base-ground-green-g2':Object.freeze({text:'G2｜ソルゴー→ベッチ',x:2,z:14.2}),
+ 'base-ground-green-g3':Object.freeze({text:'果樹草生｜クローバー'}),
+ 'base-ground-green-g4':Object.freeze({text:'中央｜クローバー'}),
+ 'base-ground-green-g5':Object.freeze({text:'北縁｜クローバー'})
+});
+function planGreenZoneLabel(item){return PLAN_GREEN_ZONE_LABELS[item.designId]?.text||null}
+function buildGroundFeatures(){
+ groundEditor?.beforeRebuild();clearRebuildGroup(groups.groundFeatures);groundFeatureObjects.clear();resolvedGroundFeatures=DESIGN.resolveGroundFeatures(STATE.activePlan);
+ resolvedGroundFeatures.forEach(item=>{
+  const entry=createGroundFeatureModel(item,{THREE,mode:STATE.mode,materials:GROUND_FEATURE_RENDER_MATERIALS,editing:groundEditor?.isEditing(),selected:groundEditor?.selectedId===item.designId});if(!entry)return;
+  const planLabelSpec=STATE.mode==='plan'?PLAN_GREEN_ZONE_LABELS[item.designId]:null;
+  if(planLabelSpec){const label=spriteText(planLabelSpec.text,{scale:.84,color:'#fff4d2'}),labelX=Number.isFinite(planLabelSpec.x)?planLabelSpec.x-item.centroid.x:0,labelZ=Number.isFinite(planLabelSpec.z)?planLabelSpec.z-item.centroid.z:0;label.position.set(labelX,1.1,labelZ);label.userData.designId=item.designId;entry.group.add(label);entry.planLabel=label}
+  tag(entry.group,groundInfo(item));entry.group.visible=STATE.layers[item.layer]!==false;groups.groundFeatures.add(entry.group);groundFeatureObjects.set(item.designId,{...entry,label:null})
+ });
+ groundEditor?.afterRebuild()
+}
 function replaceGroundFeaturePreview(item,status){
  const previous=groundFeatureObjects.get(item.designId),entry=createGroundFeatureModel(item,{THREE,mode:STATE.mode,materials:GROUND_FEATURE_RENDER_MATERIALS,editing:groundEditor?.isEditing(),selected:true,status});
  const label=previous?.label||null,labelPoint=item.kind==='path'?GROUND_GEOMETRY_UTILS.polylineMidpoint(item.points):item.centroid;
@@ -251,8 +270,23 @@ function buildHerbs(){clearRebuildGroup(groups.herbs);const H=DATA.herbs;H.clust
 function buildLawn(){clearRebuildGroup(groups.lawn)}
 
 // ---------- labels / grid ----------
-const objectFixedLabels=new Set(['浅井戸・洗い場','パーゴラテラス','作業ヤード','ハーブの帯','輪作A','輪作B','輪作C','輪作D','クローバー広場']);
-function buildLabels(){plantObjects.forEach(entry=>{entry.label=null});objectObjects.forEach(entry=>{entry.label=null});groundFeatureObjects.forEach(entry=>{entry.label=null});clearRebuildGroup(groups.labels);const showObjectLabels=!!objectEditor?.isEditing()||STATE.guides.labels||STATE.mode==='plan',showGroundLabels=!!groundEditor?.isEditing()||STATE.guides.labels||STATE.mode==='plan';DATA.labels.forEach(l=>{if(objectFixedLabels.has(l[0]))return;const s=spriteText(l[0],{scale:l[3]});s.position.set(l[1],2.7,l[2]);groups.labels.add(s)});resolvedPlants.forEach(t=>{const s=spriteText(t.name,{scale:1.35,color:'#dcecc7'});s.position.set(t.x,(t.bush?1.6:t.h+t.r+1),t.z);s.userData.designId=t.designId;groups.labels.add(s);const entry=plantObjects.get(t.designId);if(entry)entry.label=s});if(showObjectLabels)resolvedObjects.forEach(item=>{const entry=objectObjects.get(item.designId);if(!entry?.group.visible)return;const s=spriteText(item.label,{scale:1.15,color:'#f1dfba'});s.position.set(item.x,item.height+1,item.z);s.userData.designId=item.designId;groups.labels.add(s);entry.label=s});if(showGroundLabels)resolvedGroundFeatures.forEach(item=>{const entry=groundFeatureObjects.get(item.designId);if(!entry?.group.visible)return;const detail=item.kind==='path'?`${item.length.toFixed(1)}m × 幅${item.width.toFixed(1)}m・${item.area.toFixed(1)}㎡`:`${item.area.toFixed(1)}㎡・周長${item.perimeter.toFixed(1)}m`,s=spriteText(`${item.label}\n${detail}`,{scale:1.05,color:'#d8eee5'}),labelPoint=item.kind==='path'?GROUND_GEOMETRY_UTILS.polylineMidpoint(item.points):item.centroid;s.position.set(labelPoint.x,1.1,labelPoint.z);s.userData.designId=item.designId;groups.labels.add(s);entry.label=s});groups.labels.visible=STATE.guides.labels||STATE.mode==='plan'||!!objectEditor?.isEditing()||!!groundEditor?.isEditing()}
+const objectFixedLabels=new Set(['浅井戸・洗い場','パーゴラテラス','作業ヤード','ハーブの帯','輪作A','輪作B','輪作C','輪作D','クローバー広場','果樹帯の東列','民泊リビング腰窓']);
+const MAJOR_OBJECT_TYPES=new Set(['tool-shed','water-station','pergola','rainwater-tank','compost-bin']);
+const MAJOR_GROUND_IDS=new Set(['base-ground-yard','base-ground-rotation-0','base-ground-rotation-1','base-ground-rotation-2','base-ground-rotation-3','base-ground-herb-zone']);
+function addPlantLabels(individual){
+ if(individual){resolvedPlants.forEach(t=>{const s=spriteText(t.name,{scale:1.05,color:'#dcecc7'});s.position.set(t.x,(t.bush?1.6:t.h+t.r+1),t.z);s.userData.designId=t.designId;groups.labels.add(s);const entry=plantObjects.get(t.designId);if(entry)entry.label=s});return}
+ const species=new Map();resolvedPlants.forEach(t=>{const list=species.get(t.name)||[];list.push(t);species.set(t.name,list)});
+ species.forEach((plants,name)=>{const x=plants.reduce((sum,t)=>sum+t.x,0)/plants.length,z=plants.reduce((sum,t)=>sum+t.z,0)/plants.length,y=Math.max(...plants.map(t=>t.bush?1.6:t.h+t.r+1)),text=plants.length>1?`${name} ×${plants.length}`:name,s=spriteText(text,{scale:1.0,color:'#dcecc7'});s.position.set(x,y,z);groups.labels.add(s)})
+}
+function buildLabels(){
+ plantObjects.forEach(entry=>{entry.label=null});objectObjects.forEach(entry=>{entry.label=null});groundFeatureObjects.forEach(entry=>{entry.label=null});clearRebuildGroup(groups.labels);
+ const labelsEnabled=STATE.guides.labels,plantEditing=!!plantEditor?.isEditing(),objectEditing=!!objectEditor?.isEditing(),groundEditing=!!groundEditor?.isEditing();
+ if(labelsEnabled){DATA.labels.forEach(l=>{if(objectFixedLabels.has(l[0]))return;const s=spriteText(l[0],{scale:Math.min(l[3],1.55)});s.position.set(l[1],2.7,l[2]);groups.labels.add(s)});const buildingLabel=spriteText('住宅＋民泊',{scale:1.35,color:'#f3ecde'});buildingLabel.position.set(DATA.building.cx,DATA.building.ridgeH+1,DATA.building.cz);groups.labels.add(buildingLabel)}
+ if(labelsEnabled||plantEditing)addPlantLabels(plantEditing);
+ if(labelsEnabled||objectEditing)resolvedObjects.forEach(item=>{const entry=objectObjects.get(item.designId);if(!entry?.group.visible||!objectEditing&&!MAJOR_OBJECT_TYPES.has(item.type))return;const s=spriteText(item.label,{scale:objectEditing?1.05:1.0,color:'#f1dfba'});s.position.set(item.x,item.height+1,item.z);s.userData.designId=item.designId;groups.labels.add(s);entry.label=s});
+ if(labelsEnabled||groundEditing)resolvedGroundFeatures.forEach(item=>{const entry=groundFeatureObjects.get(item.designId);if(!entry?.group.visible||STATE.mode==='plan'&&planGreenZoneLabel(item))return;const greenLabel=planGreenZoneLabel(item),major=MAJOR_GROUND_IDS.has(item.designId)||!!greenLabel;if(!groundEditing&&!major)return;const detail=item.kind==='path'?`${item.length.toFixed(1)}m × 幅${item.width.toFixed(1)}m・${item.area.toFixed(1)}㎡`:`${item.area.toFixed(1)}㎡・周長${item.perimeter.toFixed(1)}m`,text=groundEditing?`${item.label}\n${detail}`:greenLabel||item.label,s=spriteText(text,{scale:groundEditing?1.0:.92,color:'#d8eee5'}),labelPoint=item.kind==='path'?GROUND_GEOMETRY_UTILS.polylineMidpoint(item.points):item.centroid;s.position.set(labelPoint.x,1.1,labelPoint.z);s.userData.designId=item.designId;groups.labels.add(s);entry.label=s});
+ groups.labels.visible=labelsEnabled||plantEditing||objectEditing||groundEditing
+}
 const gridGroup=new THREE.Group();groups.guides.add(gridGroup);
 function buildGrid(){gridGroup.clear();const x0=Math.floor(Math.min(...DATA.site.map(p=>p.x))/5)*5,x1=Math.ceil(Math.max(...DATA.site.map(p=>p.x))/5)*5,z0=Math.floor(zMin/5)*5,z1=Math.ceil(zMax/5)*5,pts=[];for(let x=x0;x<=x1;x+=5)pts.push(new THREE.Vector3(x,.07,z0),new THREE.Vector3(x,.07,z1));for(let z=z0;z<=z1;z+=5)pts.push(new THREE.Vector3(x0,.07,z),new THREE.Vector3(x1,.07,z));gridGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x8ec1ca,transparent:true,opacity:.34})));gridGroup.visible=STATE.guides.grid}
 
@@ -267,8 +301,9 @@ function updateSun(){const q=sunAltAz(STATE.doy,STATE.tod),off=STATE.northOff*Ma
 
 // ---------- mode styling ----------
 function setMode(mode){STATE.mode=mode;syncAssetVariant(false);updateAssetStatus(ASSET_MANAGER.getStatus());document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));$('insMeta').lastElementChild.textContent=mode==='real'?'リアル':'設計図';
+ $('greenManureLegend')?.classList.toggle('hidden',mode!=='plan');
  if(mode==='real'){renderer.toneMapping=THREE.ACESFilmicToneMapping;scene.fog.density=.0055;contextGroup.visible=STATE.context;groups.labels.visible=STATE.guides.labels;groups.guides.visible=STATE.guides.boundary||STATE.guides.grid;sky.visible=true}else{renderer.toneMapping=THREE.NoToneMapping;scene.fog.density=.002;contextGroup.visible=false;groups.labels.visible=true;groups.guides.visible=true;sky.visible=true}
- buildSite();buildBuilding();buildPaths();buildFacilities();buildGroundFeatures();buildGuestBeds();buildHerbs();buildRotations();buildTrees();buildLawn();buildObjects();buildLabels();applyWorkspace(window.ACTIVE_WORKSPACE);updateResourceMetrics();toast(mode==='real'?'リアル表示に切替':'設計図表示に切替')}
+ buildSite();buildBuilding();buildRoad();buildPaths();buildFacilities();buildGroundFeatures();buildGuestBeds();buildHerbs();buildRotations();buildTrees();buildLawn();buildObjects();buildLabels();applyWorkspace(window.ACTIVE_WORKSPACE);updateResourceMetrics();toast(mode==='real'?'リアル表示に切替':'設計図表示に切替')}
 
 // ---------- build all ----------
 
@@ -456,12 +491,13 @@ function selectAt(x,y){if(plantEditor?.isEditing()||objectEditor?.isEditing()||g
 
 // custom orbit controls
 let drag=null,pinch=null,moved=false;const el=renderer.domElement;
-el.addEventListener('mousedown',e=>{if(plantEditor?.isEditing()||objectEditor?.isEditing()||groundEditor?.isEditing())return;drag={x:e.clientX,y:e.clientY,btn:e.button,shift:e.shiftKey};moved=false});addEventListener('mousemove',e=>{if(!drag||camera===ortho||plantEditor?.isEditing()||objectEditor?.isEditing()||groundEditor?.isEditing())return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;if(drag.btn===2||drag.shift)panCam(dx,dy);else{cam.a-=dx*.006;cam.p-=dy*.006}drag.x=e.clientX;drag.y=e.clientY});addEventListener('mouseup',e=>{if(drag&&!moved){STATE.measure?measureAt(e.clientX,e.clientY):selectAt(e.clientX,e.clientY)}drag=null});el.addEventListener('contextmenu',e=>e.preventDefault());el.addEventListener('wheel',e=>{e.preventDefault();if(camera===ortho){const s=1+Math.sign(e.deltaY)*.08;ortho.left*=s;ortho.right*=s;ortho.top*=s;ortho.bottom*=s;ortho.updateProjectionMatrix()}else cam.r*=1+Math.sign(e.deltaY)*.09},{passive:false});
-el.addEventListener('touchstart',e=>{if(plantEditor?.isEditing()||objectEditor?.isEditing()||groundEditor?.isEditing())return;if(e.touches.length===1){drag={x:e.touches[0].clientX,y:e.touches[0].clientY};moved=false}else if(e.touches.length===2){drag=null;const[a,b]=e.touches;pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),cx:(a.clientX+b.clientX)/2,cy:(a.clientY+b.clientY)/2}}},{passive:true});el.addEventListener('touchmove',e=>{if(camera===ortho||plantEditor?.isEditing()||objectEditor?.isEditing()||groundEditor?.isEditing())return;if(e.touches.length===1&&drag){const t=e.touches[0],dx=t.clientX-drag.x,dy=t.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)moved=true;cam.a-=dx*.007;cam.p-=dy*.007;drag.x=t.clientX;drag.y=t.clientY}else if(e.touches.length===2&&pinch){const[a,b]=e.touches,d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);cam.r*=pinch.d/d;const cx=(a.clientX+b.clientX)/2,cy=(a.clientY+b.clientY)/2;panCam(cx-pinch.cx,cy-pinch.cy);pinch={d,cx,cy}}e.preventDefault()},{passive:false});el.addEventListener('touchend',e=>{if(e.touches.length===0){if(drag&&!moved&&e.changedTouches.length){const t=e.changedTouches[0];STATE.measure?measureAt(t.clientX,t.clientY):selectAt(t.clientX,t.clientY)}drag=null;pinch=null}});
+function panTopCamera(fromX,fromY,toX,toY){const before=new THREE.Vector3(),after=new THREE.Vector3();screenRay(fromX,fromY);if(!raycaster.ray.intersectPlane(groundPlane,before))return;screenRay(toX,toY);if(!raycaster.ray.intersectPlane(groundPlane,after))return;topTarget.add(before.sub(after));positionTopCamera()}
+el.addEventListener('mousedown',e=>{if(plantEditor?.isEditing()||objectEditor?.isEditing()||groundEditor?.isEditing())return;drag={x:e.clientX,y:e.clientY,btn:e.button,shift:e.shiftKey};moved=false});addEventListener('mousemove',e=>{if(!drag||plantEditor?.isEditing()||objectEditor?.isEditing()||groundEditor?.isEditing())return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(camera===ortho){if(Math.abs(dx)+Math.abs(dy)>3)moved=true;if(drag.btn===2||drag.shift)panTopCamera(drag.x,drag.y,e.clientX,e.clientY)}else{if(Math.abs(dx)+Math.abs(dy)>3)moved=true;if(drag.btn===2||drag.shift)panCam(dx,dy);else{cam.a-=dx*.006;cam.p-=dy*.006}}drag.x=e.clientX;drag.y=e.clientY});addEventListener('mouseup',e=>{if(drag&&!moved){STATE.measure?measureAt(e.clientX,e.clientY):selectAt(e.clientX,e.clientY)}drag=null});el.addEventListener('contextmenu',e=>e.preventDefault());el.addEventListener('wheel',e=>{e.preventDefault();if(camera===ortho){const s=1+Math.sign(e.deltaY)*.08;ortho.left*=s;ortho.right*=s;ortho.top*=s;ortho.bottom*=s;ortho.updateProjectionMatrix()}else cam.r*=1+Math.sign(e.deltaY)*.09},{passive:false});
+el.addEventListener('touchstart',e=>{if(plantEditor?.isEditing()||objectEditor?.isEditing()||groundEditor?.isEditing())return;if(e.touches.length===1){drag={x:e.touches[0].clientX,y:e.touches[0].clientY};moved=false}else if(e.touches.length===2){drag=null;const[a,b]=e.touches;pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),cx:(a.clientX+b.clientX)/2,cy:(a.clientY+b.clientY)/2}}},{passive:true});el.addEventListener('touchmove',e=>{if(plantEditor?.isEditing()||objectEditor?.isEditing()||groundEditor?.isEditing())return;if(e.touches.length===1&&drag){const t=e.touches[0],dx=t.clientX-drag.x,dy=t.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)moved=true;if(camera===ortho)panTopCamera(drag.x,drag.y,t.clientX,t.clientY);else{cam.a-=dx*.007;cam.p-=dy*.007}drag.x=t.clientX;drag.y=t.clientY}else if(e.touches.length===2&&pinch){const[a,b]=e.touches,d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),cx=(a.clientX+b.clientX)/2,cy=(a.clientY+b.clientY)/2;if(camera===ortho){const s=pinch.d/d;ortho.left*=s;ortho.right*=s;ortho.top*=s;ortho.bottom*=s;ortho.updateProjectionMatrix();panTopCamera(pinch.cx,pinch.cy,cx,cy)}else{cam.r*=pinch.d/d;panCam(cx-pinch.cx,cy-pinch.cy)}pinch={d,cx,cy}}e.preventDefault()},{passive:false});el.addEventListener('touchend',e=>{if(e.touches.length===0){if(drag&&!moved&&e.changedTouches.length){const t=e.changedTouches[0];STATE.measure?measureAt(t.clientX,t.clientY):selectAt(t.clientX,t.clientY)}drag=null;pinch=null}});
 function panCam(dx,dy){const k=cam.r*.0016,right=new THREE.Vector3().setFromSphericalCoords(1,Math.PI/2,cam.a-Math.PI/2),fwd=new THREE.Vector3().setFromSphericalCoords(1,Math.PI/2,cam.a);cam.target.addScaledVector(right,dx*k).addScaledVector(fwd,dy*k)}
 
 // ---------- render loop ----------
-addEventListener('resize',()=>{perspective.aspect=innerWidth/innerHeight;perspective.updateProjectionMatrix();if(camera===ortho)setTopCamera();applyQuality();updateSun()});
+addEventListener('resize',()=>{perspective.aspect=innerWidth/innerHeight;perspective.updateProjectionMatrix();if(camera===ortho)setTopCamera(false);applyQuality();updateSun()});
 let last=0,lastFrame=0;function loop(t){requestAnimationFrame(loop);const dt=Math.min(50,t-lastFrame);lastFrame=t;if(STATE.playing&&t-last>55){last=t;STATE.tod+=5;if(STATE.tod>1170)STATE.tod=300;updateSun()}updateWalk(dt);applyCamera();renderer.render(scene,camera)}
 flyTo('birdNE');loop(0);
 }

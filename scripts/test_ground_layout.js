@@ -54,8 +54,13 @@ const materialStub = {
   yardGravel: new THREE.MeshBasicMaterial(), guestSoil: new THREE.MeshBasicMaterial()
 };
 const featureMaterials = createGroundFeatureMaterials(THREE, materialStub);
-assert.strictEqual(featureMaterials.plan['area-crimson-clover'].color.getHex(), 0xc07078, 'PLAN crimson clover color');
-assert.strictEqual(featureMaterials.plan['area-green-manure'].color.getHex(), 0x7d8f5a, 'PLAN green manure color');
+assert.strictEqual(featureMaterials.plan['area-lawn'].color.getHex(), 0x94c978, 'PLAN lawn color');
+assert.strictEqual(featureMaterials.plan['area-clover'].color.getHex(), 0x3f9e8a, 'PLAN clover color');
+assert.strictEqual(featureMaterials.plan['area-crimson-clover'].color.getHex(), 0xc94f72, 'PLAN crimson clover color');
+assert.strictEqual(featureMaterials.plan['area-green-manure'].color.getHex(), 0xd2a537, 'PLAN green manure color');
+assert(featureMaterials.plan['area-clover'].map, 'PLAN clover has a distinguishing pattern');
+assert(featureMaterials.plan['area-crimson-clover'].map, 'PLAN crimson clover has a distinguishing pattern');
+assert(featureMaterials.plan['area-green-manure'].map, 'PLAN green manure has a distinguishing pattern');
 assert.strictEqual(featureMaterials.real['area-crimson-clover'], materialStub.clover, 'REAL crimson clover reuses clover material');
 assert.strictEqual(featureMaterials.real['area-green-manure'], materialStub.clover, 'REAL green manure reuses clover material');
 const greenZones = base.slice(12);

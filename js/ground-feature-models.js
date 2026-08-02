@@ -249,14 +249,46 @@
   }
 
   let cachedMaterials = null;
+  function planPatternTexture(THREE, pattern) {
+    const size = 16, data = new Uint8Array(size * size * 4);
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        let shade = 255;
+        if (pattern === 'clover') {
+          const px = x % 8, py = y % 8;
+          if ((Math.abs(px - 2) + Math.abs(py - 2) <= 1) || (Math.abs(px - 6) + Math.abs(py - 6) <= 1)) shade = 174;
+        } else if (pattern === 'crimson') {
+          const px = x % 8, py = y % 8;
+          if ((px === 4 && Math.abs(py - 4) <= 2) || (py === 4 && Math.abs(px - 4) <= 2)) shade = 180;
+        } else if (pattern === 'rotation') {
+          if ((x + y) % 8 < 2) shade = 176;
+        }
+        const offset = (y * size + x) * 4;
+        data[offset] = data[offset + 1] = data[offset + 2] = shade;
+        data[offset + 3] = 255;
+      }
+    }
+    const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.magFilter = texture.minFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+    texture.encoding = THREE.sRGBEncoding;
+    texture.repeat.set(8, 8);
+    texture.needsUpdate = true;
+    return texture;
+  }
+  function planPatternMaterial(THREE, color, pattern) {
+    return new THREE.MeshBasicMaterial({ color, map: planPatternTexture(THREE, pattern) });
+  }
   function createGroundFeatureMaterials(THREE, ground) {
     if (cachedMaterials) return cachedMaterials;
     const weed = new THREE.MeshStandardMaterial({ color: 0x3f4341, roughness: 0.96, metalness: 0 });
     const plan = {
       'path-gravel': ground.planPath, 'path-soil': ground.planSoil, 'path-stone': new THREE.MeshBasicMaterial({ color: 0xb6b0a1 }),
-      'area-lawn': new THREE.MeshBasicMaterial({ color: 0x6f9f54 }), 'area-clover': ground.planClover,
-      'area-crimson-clover': new THREE.MeshBasicMaterial({ color: 0xc07078 }),
-      'area-green-manure': new THREE.MeshBasicMaterial({ color: 0x7d8f5a }),
+      'area-lawn': new THREE.MeshBasicMaterial({ color: 0x94c978 }),
+      'area-clover': planPatternMaterial(THREE, 0x3f9e8a, 'clover'),
+      'area-crimson-clover': planPatternMaterial(THREE, 0xc94f72, 'crimson'),
+      'area-green-manure': planPatternMaterial(THREE, 0xd2a537, 'rotation'),
       'area-gravel': ground.planGravel, 'area-flower-bed': new THREE.MeshBasicMaterial({ color: 0xa77568 }),
       'area-vegetable': ground.planSoil, 'area-herb': new THREE.MeshBasicMaterial({ color: 0x8176a6 }),
       'area-weed-control': new THREE.MeshBasicMaterial({ color: 0x555b59 }), 'area-yard-gravel': ground.planGravel
