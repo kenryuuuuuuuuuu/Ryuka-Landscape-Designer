@@ -17,7 +17,7 @@
   });
 
   const ROAD_MATERIALS = Object.freeze({
-    road: new THREE.MeshBasicMaterial({ color: 0x9AA0A6, side: THREE.DoubleSide }),
+    road: new THREE.MeshStandardMaterial({ color: 0x4f5252, roughness: 0.96, metalness: 0, side: THREE.DoubleSide }),
     turnaround: new THREE.MeshBasicMaterial({ color: 0xE0954A, transparent: true, opacity: .42, side: THREE.DoubleSide, depthWrite: false })
   });
 
@@ -26,7 +26,7 @@
     points.forEach(point => vertices.push(point.x, y, point.z));
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    geometry.setIndex([0, 1, 2, 0, 2, 3]);
+    geometry.setIndex([0, 2, 1, 0, 3, 2]);
     geometry.computeVertexNormals();
     const mesh = new THREE.Mesh(geometry, material);
     mesh.receiveShadow = true;
@@ -62,11 +62,12 @@
     }, 200, 66, 1.15, .38, x, y, z);
   }
 
-  global.createRoadModel = function createRoadModel() {
+  global.createRoadModel = function createRoadModel(options = {}) {
     const group = new THREE.Group();
-    group.add(quad(ROAD_DATA.frontRoad, ROAD_MATERIALS.road, -.01));
-    group.add(quad(ROAD_DATA.eastLane, ROAD_MATERIALS.road, -.01));
-    group.add(quad(ROAD_DATA.eastRoad, ROAD_MATERIALS.road, -.01));
+    const roadMaterial = options.roadMaterial || ROAD_MATERIALS.road;
+    group.add(quad(ROAD_DATA.frontRoad, roadMaterial, -.01));
+    group.add(quad(ROAD_DATA.eastLane, roadMaterial, -.01));
+    group.add(quad(ROAD_DATA.eastRoad, roadMaterial, -.01));
     group.add(quad(ROAD_DATA.turnaround, ROAD_MATERIALS.turnaround, -.008));
     return group;
   };
