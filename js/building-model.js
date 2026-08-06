@@ -1,5 +1,5 @@
 // 天領住宅 Ver5 実施図面（2026年7月）に基づく建物モデル。
-// 形状の根拠は docs/BUILDING-SPEC.md を参照すること。
+// 形状の根拠は docs/MODEL-SPEC.md を参照すること。
 (function exposeBuildingModel(global) {
   'use strict';
 
