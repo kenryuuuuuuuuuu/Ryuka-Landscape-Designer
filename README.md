@@ -25,7 +25,8 @@ PWA用のmanifest、アイコン、Service Workerを同梱しています。
 - `manifest.webmanifest`: ホーム画面追加用設定
 - `sw.js`: 基本的なキャッシュ設定
 - `icon.svg`: アプリアイコン
-- `docs/original_v2_2.html`: 元の座標・構造を確認するための原本
+- `docs/README.md`: 現行モデル仕様、データ管理規則、実装構造の案内
+- `docs/references/original_v2_2.html`: 元の座標・構造を確認するための参考資料
 
 ## 注意
 

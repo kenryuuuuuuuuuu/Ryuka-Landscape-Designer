@@ -2,6 +2,8 @@
 
 Ryuka Landscape Designer v4.9.0 は、GitHub Pagesで配信できる静的なThree.jsアプリケーションです。
 
+本書はコード構造と実行経路だけを扱います。現在の座標・寸法・モデル仕様は[`MODEL-SPEC.md`](MODEL-SPEC.md)、固定値と設計差分の管理規則は[`DATA-GOVERNANCE.md`](DATA-GOVERNANCE.md)を参照してください。
+
 ## ファイル構成
 
 - `index.html`: HTML構造、スタイル、スクリプトの読み込み順を定義します。
